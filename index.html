@@ -43,7 +43,7 @@ button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px
  <div class="card"><h2>Simulation</h2>
   <div class="tabs" id="scope"><button data-k="national" class="on">National</button><button data-k="state">Individual state</button></div>
   <label>Starting election (baseline results)<select id="base"></select></label>
-  <div class="hint" id="binfo"></div>
+  <div class="hint" id="binfo"></div><div class="hint" id="dstat"></div>
  </div>
  <div class="card"><h2>State</h2><select id="sel"><option value="">United States</option></select><div id="sinfo" style="margin-top:8px;color:var(--m)"></div><div id="sadj"></div></div>
  <div class="card" id="sacard"><h2 id="satitle">State group adjustments</h2><table id="satab"></table><table id="satabT" style="margin-top:10px"></table><div class="hint" id="sahint"></div><div id="salist" style="margin-top:6px"></div><button id="sareset" style="margin-top:8px">Reset this state’s group adjustments</button></div>
@@ -370,7 +370,10 @@ function panels(){
  $('dtab').innerHTML=`<tr><th>Group</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${CMPY}</th><th>Shift</th></tr>`+G.map((n,i)=>{const m=mgs[i],s=cd?m-cd[i]:0;return `<tr><td>${n}</td><td>${(shr[i]*100).toFixed(1)}%</td><td>${n0(tot*shr[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${cd?fmt(cd[i]):'–'}</td><td class="${s>0?'D':'R'}">${s>0?'← D ':'R → '}${Math.abs(s).toFixed(1)}</td></tr>`}).join('');
  $('dnote').textContent=(SEL?'Electorate shares come from this state’s population composition (or your overrides). ':'Turnout = voters ÷ citizen voting-age population (ACS, per group). ')+'Group margins are national, approximate, and editable.';
 }
-function upd(){if(!C.size)return;calc();paint();panels();refreshSA();
+function demoStatus(){const v=[...C.values()],n=v.length,ns=v.filter(c=>c.s).length,nt=v.filter(c=>c.ty).length,u=LEVEL==='counties'&&COUNTYOK?'counties':'states',bad=ns<n*.9||nt<n*.9,el=$('dstat');
+ el.style.color=bad?'#ec6b7e':'';
+ el.textContent=bad?`⚠ Demographics missing for ${n-Math.min(ns,nt)} of ${n} ${u} (race ${ns}, community type ${nt}). Those use the national mix, so group shifts move them all the same. County-level swings need data/counties.json or access to api.census.gov.`:`Demographics loaded for ${Math.min(ns,nt)} of ${n} ${u}: group shifts scale with each place’s own mix.`}
+function upd(){if(!C.size)return;calc();paint();panels();refreshSA();demoStatus();
  const o=ST[SEL];$('sinfo').innerHTML=o?`<b>${SEL}</b> · ${SCOPE==='state'?'':(EV[SEL]||'')+' EV · '}${fmt(o.m)} (${BASEY} actual ${fmt(o.b)})`:'Pick a state or click a county to zoom in.'}
 function selState(){
  $('sadj').innerHTML='';if(SEL&&SCOPE==='national')$('sadj').append(sl('State adjustment (− R / + D pts)',-20,20,.5,S.st[SEL]||0,v=>S.st[SEL]=v));
