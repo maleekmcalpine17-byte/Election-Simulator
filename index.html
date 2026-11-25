@@ -12,7 +12,7 @@ main{display:grid;grid-template-columns:320px minmax(0,1fr) 290px;gap:14px;paddi
 .card{background:var(--p);border:1px solid var(--l);border-radius:10px;padding:12px;margin-bottom:12px}
 h2{margin:0 0 8px;font:600 11px system-ui;letter-spacing:.12em;text-transform:uppercase;color:var(--g)}
 label{display:block;margin:6px 0;color:var(--m);font-size:12px}label b{float:right;color:var(--t)}
-#satab input{width:56px}#satab td:last-child{white-space:nowrap}input[type=range]{width:100%}input[type=text],input[type=number],select{background:#080c14;color:var(--t);border:1px solid var(--l);border-radius:5px;padding:4px;width:100%}
+#satab input,#satabT input{width:56px}#satab td:last-child,#satabT td:last-child{white-space:nowrap}input[type=range]{width:100%}input[type=text],input[type=number],select{background:#080c14;color:var(--t);border:1px solid var(--l);border-radius:5px;padding:4px;width:100%}
 table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:4px;text-align:left;color:var(--m);border-bottom:1px solid #1c2640}td:first-child{color:var(--t)}
 button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tabs button.on{background:#e6dcff;color:#111}
@@ -46,12 +46,12 @@ button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px
   <div class="hint" id="binfo"></div>
  </div>
  <div class="card"><h2>State</h2><select id="sel"><option value="">United States</option></select><div id="sinfo" style="margin-top:8px;color:var(--m)"></div><div id="sadj"></div></div>
- <div class="card" id="sacard"><h2 id="satitle">State group adjustments</h2><table id="satab"></table><div class="hint" id="sahint"></div><div id="salist" style="margin-top:6px"></div><button id="sareset" style="margin-top:8px">Reset this state’s group adjustments</button></div>
+ <div class="card" id="sacard"><h2 id="satitle">State group adjustments</h2><table id="satab"></table><table id="satabT" style="margin-top:10px"></table><div class="hint" id="sahint"></div><div id="salist" style="margin-top:6px"></div><button id="sareset" style="margin-top:8px">Reset this state’s group adjustments</button></div>
  <div class="card" id="natcard"><h2>National</h2><div id="nat"></div></div>
  <div class="card" id="stcard" style="display:none"><h2>State race</h2><div id="stc"></div></div>
  <div class="card"><h2>Democratic campaign <span class="gd" id="gdD"></span></h2><input type="text" id="dn" value="Democrat"><div id="cd"></div></div>
  <div class="card"><h2>Republican campaign <span class="gd" id="gdR"></span></h2><input type="text" id="rn" value="Republican"><div id="cr"></div></div>
- <div class="card"><h2 id="dtitle">Demographic electorate (national)</h2><table id="demo"></table><small id="sum" style="color:var(--m)"></small><br><br><button id="reset">Reset all</button></div>
+ <div class="card"><h2 id="dtitle">Demographic electorate (national)</h2><table id="demo"></table><div class="sub" style="margin:14px 0 6px">Community type (national)</div><table id="demoT"></table><div class="hint" id="thint"></div><small id="sum" style="color:var(--m)"></small><br><br><button id="reset">Reset all</button></div>
 </div>
 <div>
  <div class="card" style="padding:8px">
@@ -61,7 +61,7 @@ button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px
   <div class="mbar"><button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button><button id="zreset">Reset map</button></div>
   <svg id="map" viewBox="0 0 975 610"><g id="zz"><g id="z"></g><g id="zs"></g></g></svg><div id="msg">Loading…</div><div id="binleg"></div>
  </div>
- <div class="card"><h2>Who turned out · <span id="dgeo"></span></h2><div class="cards" id="dcards"></div><table id="dtab"></table><small id="dnote" style="color:var(--m)"></small></div>
+ <div class="card"><h2>Who turned out · <span id="dgeo"></span></h2><div class="sub" style="margin:0 0 8px">By race &amp; ethnicity</div><div class="cards" id="dcards"></div><table id="dtab"></table><div class="sub" style="margin:16px 0 8px">By community type</div><div class="cards" id="dcardsT"></div><table id="dtabT"></table><small id="dnote" style="color:var(--m)"></small></div>
 </div>
 <div>
  <div class="card" id="rr"></div>
@@ -75,7 +75,16 @@ const YEARS=[2000,2004,2008,2012,2016,2020,2024],CY=[2008,2012,2016,2020,2024]; 
 // National group shares (%) and D margins per election: approximate exit-poll style figures, editable in the UI.
 const DEMO={2000:[[80,10,7,2,1],[-12,82,36,14,17]],2004:[[77,11,8,2,2],[-17,77,9,12,13]],2008:[[74,13,9,2,2],[-12,91,36,27,35]],2012:[[72,13,10,3,2],[-20,87,44,47,20]],2016:[[70,12,11,4,3],[-20,80,36,38,19]],2020:[[67,12,13,4,4],[-17,79,33,34,0]],2024:[[71,11,12,3,3],[-12,70,6,18,-5]]};
 const NCV=[157845332,29607116,33753153,11654239,0],DEF=DEMO[2024][0].map(x=>x/100);
-const BASE={sh:[...DEMO[2024][0]],mg:[...DEMO[2024][1]]};
+// Community type (urban / suburban / rural): national exit-poll shares (%) and D margins per election. Approximate, editable in the UI.
+// 2016/2020/2024 checked against published exit polls; earlier years rebuilt from published summaries and the national result.
+const TY=['Urban','Suburban','Rural'];
+const DEMOT={2000:[[29,43,28],[25,-2,-22]],2004:[[30,46,24],[9,-5,-15]],2008:[[30,49,21],[28,2,-8]],2012:[[32,47,21],[26,-2,-20]],2016:[[34,49,17],[24,-4,-27]],2020:[[30,51,19],[23,2,-12]],2024:[[29,52,19],[20,-4,-30]]};
+const DEFT=DEMOT[2024][0].map(x=>x/100);
+// County community type from Census data: urban population (2020 Census Table P2) split by land-area density (people per sq mi).
+// Census has no "suburban" class, so: Census-urban people in dense counties = urban core, in less dense counties = suburban, Census-rural = rural.
+// Density ramps are log-scale: metro = how much of the Census-urban population counts as metro (0 below 100/sq mi, 1 above 500); core = share of that in the urban core (0 below 1,000, 1 above 10,000).
+const TYC={metro:[100,500],core:[1000,10000]};
+const BASE={sh:[...DEMO[2024][0]],mg:[...DEMO[2024][1]],th:[...DEMOT[2024][0]],tm:[...DEMOT[2024][1]]};
 const NM="Alabama,Alaska,Arizona,Arkansas,California,Colorado,Connecticut,Delaware,District of Columbia,Florida,Georgia,Hawaii,Idaho,Illinois,Indiana,Iowa,Kansas,Kentucky,Louisiana,Maine,Maryland,Massachusetts,Michigan,Minnesota,Mississippi,Missouri,Montana,Nebraska,Nevada,New Hampshire,New Jersey,New Mexico,New York,North Carolina,North Dakota,Ohio,Oklahoma,Oregon,Pennsylvania,Rhode Island,South Carolina,South Dakota,Tennessee,Texas,Utah,Vermont,Virginia,Washington,West Virginia,Wisconsin,Wyoming".split(',');
 // Electoral votes by apportionment (same alphabetical order as NM): 2000 election, 2004/08, 2012/16/20, 2024
 const EVT={1990:[9,3,8,6,54,8,8,3,3,25,13,4,4,22,12,7,6,8,9,4,10,12,18,10,7,11,3,5,4,4,15,5,33,14,3,21,8,7,23,4,8,3,11,32,5,3,13,11,5,11,3],
@@ -191,8 +200,8 @@ const S24={};let tot24=0;ST24.split('\n').forEach(l=>{const p=l.split(',');S24[p
 const NT={2000:105.4e6,2004:122.3e6,2008:131.3e6,2012:129.1e6,2016:136.7e6,2020:158.4e6},OT={2000:.04,2004:.01,2008:.02,2012:.02,2016:.05,2020:.02};
 const MT={};NM.forEach(n=>{MT[n]={};YEARS.slice(0,6).forEach((y,i)=>MT[n][y]=HM[n][i]);const[d,g,t]=S24[n];MT[n][2024]=(d-g)/t*100});
 const MODES={margin:'Vote margin',turnout:'Turnout',swing:'Swing',lead:'Size of lead',flips:'Flips',vsstate:'County vs. state'};
-const init=()=>({env:0,lean:1,imp:.3,to:0,st:{},sto:{},sa:{},race:'',sh:[...BASE.sh],mg:[...BASE.mg],d:[80,80,80,80,80],r:[80,80,80,80,80]});
-let LEVEL='counties',COUNTYOK=false,sp,S=init(),C=new Map(),ALL=new Map(),ST={},NAT=0,paths,geo,sf,SN={},IX={},SEL='',MODE='margin',svg,zm,pth,SCOPE='national',BASEY=2024,CMPY=2024,EV={},SMEAN={},SBASE={};
+const init=()=>({env:0,lean:1,imp:.3,to:0,st:{},sto:{},sa:{},race:'',sh:[...BASE.sh],mg:[...BASE.mg],th:[...BASE.th],tm:[...BASE.tm],d:[80,80,80,80,80],r:[80,80,80,80,80]});
+let LEVEL='counties',COUNTYOK=false,sp,S=init(),C=new Map(),ALL=new Map(),ST={},NAT=0,paths,geo,sf,SN={},IX={},SEL='',MODE='margin',svg,zm,pth,SCOPE='national',BASEY=2024,CMPY=2024,EV={},SMEAN={},SBASE={},TBASE={},TYOK=false;
 const dv=(a)=>d3.scaleDiverging(d3.interpolateRdBu).domain([-a,0,a]);
 const col=dv(40),sw=dv(15),vss=dv(20),ld=dv(5.5),tu=d3.scaleSequential(d3.interpolatePurples).domain([.35,.85]);
 const fmt=m=>(m>=0?'D+':'R+')+Math.abs(m).toFixed(1),n0=x=>Math.round(x).toLocaleString(),gr=x=>x>=90?'A':x>=80?'B':x>=70?'C':x>=60?'D':'F',NA='#253447';
@@ -200,13 +209,17 @@ const DB=['#e9e9fb','#cacaf7','#a9a9f6','#8686f5','#6464f2','#3a3aec','#1c1cc8',
 const bi=a=>{a=Math.abs(a);return a<1?0:a<3?1:a<6?2:a<10?3:a<20?4:a<35?5:a<50?6:7},binCol=m=>(m>=0?DB:RB)[bi(m)];
 let ZK=1,RS=()=>0,BV=new Map(),AS=new Map(),AMAX=24;
 function sl(l,min,max,step,v,cb){const d=document.createElement('label');d.innerHTML=`${l}<b>${v}</b><input type=range min=${min} max=${max} step=${step} value=${v}>`;const i=d.lastChild,b=d.firstElementChild;i.oninput=()=>{b.textContent=i.value;cb(+i.value);upd()};return d}
-const saOf=st=>S.sa[st]??={dm:[0,0,0,0,0],ds:[0,0,0,0,0]};
-const saZero=a=>!a||(a.dm.every(x=>!x)&&a.ds.every(x=>!x));
+const saOf=st=>S.sa[st]??={dm:[0,0,0,0,0],ds:[0,0,0,0,0],tm:[0,0,0],ts:[0,0,0]};
+const saZero=a=>!a||[a.dm,a.ds,a.tm,a.ts].every(v=>!v||v.every(x=>!x));
 // Effective electorate for a state = national values + that state's own adjustments.
 // share: state composition x national share change + share shift, renormalised. margin: national group margin + margin shift.
 function effSA(st){const b=SBASE[st]||BASE.sh,kN=S.sh.map((x,i)=>x/BASE.sh[i]),a=S.sa[st],ds=a?a.ds:[0,0,0,0,0],dm=a?a.dm:[0,0,0,0,0];
  const raw=b.map((x,i)=>Math.max(0,x*kN[i]+ds[i])),sd=d3.sum(raw)||1;
  return{sh:raw.map(x=>x/sd*100),mg:S.mg.map((m,i)=>m+dm[i]),k:b.map((x,i)=>x>0?raw[i]/x:kN[i])}}
+// Same idea for community type: state mix x national share change + state share shift, margins = national + state shift.
+function effST(st){const b=TBASE[st]||BASE.th,kN=S.th.map((x,i)=>x/BASE.th[i]),a=S.sa[st],ds=a&&a.ts?a.ts:[0,0,0],dm=a&&a.tm?a.tm:[0,0,0];
+ const raw=b.map((x,i)=>Math.max(0,x*kN[i]+ds[i])),sd=d3.sum(raw)||1;
+ return{sh:raw.map(x=>x/sd*100),mg:S.tm.map((m,i)=>m+dm[i]),k:b.map((x,i)=>x>0?raw[i]/x:kN[i])}}
 function build(){
  for(const id of['nat','cd','cr','stc'])$(id).innerHTML='';
  $('nat').append(sl('National environment (− R / + D pts)',-15,15,.5,S.env,v=>S.env=v),sl('Partisan lean strength (×)',.5,1.5,.05,S.lean,v=>S.lean=v),sl('Candidate impact (pts per score pt)',0,1,.05,S.imp,v=>S.imp=v),sl('Turnout change (pts of eligible voters)',-10,10,.5,S.to,v=>S.to=v));
@@ -225,40 +238,49 @@ function buildDemo(){
  G.forEach((g,i)=>{const r=t.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value="${(+S.sh[i]).toFixed(1)}"></td><td><input type=number step=1 value="${(+S.mg[i]).toFixed(0)}"></td>`;
   const[a,b]=r.querySelectorAll('input');
   a.oninput=()=>{S.sh[i]=+a.value||0;upd()};b.oninput=()=>{S.mg[i]=+b.value||0;upd()}});
+ const tt=$('demoT');
+ tt.innerHTML='<tr><th>Community</th><th>Electorate %</th><th>D margin</th></tr>';
+ TY.forEach((g,i)=>{const r=tt.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value="${(+S.th[i]).toFixed(1)}"></td><td><input type=number step=1 value="${(+S.tm[i]).toFixed(0)}"></td>`;
+  const[a,b]=r.querySelectorAll('input');
+  a.oninput=()=>{S.th[i]=+a.value||0;upd()};b.oninput=()=>{S.tm[i]=+b.value||0;upd()}});
  buildSA();
 }
 // ---- per-state group adjustments (layered on the national numbers)
 function buildSA(){
- const t=$('satab'),has=!!SEL;
+ const has=!!SEL;
  $('satitle').textContent='State group adjustments'+(has?' · '+SEL:'');
- $('sahint').textContent=has?'These shifts apply on top of the national values above, so a national move still carries into '+SEL+'. Margin Δ: + moves the group toward D, − toward R (points). Share Δ: points of the state’s electorate; shares are renormalised to 100%.':'Select a state (dropdown or click it on the map) to move its group shares or margins on their own, for example whites shifting left nationally but right in Florida.';
- t.style.display=has?'':'none';$('sareset').style.display=has?'':'none';
- t.innerHTML='';
- if(has){t.innerHTML='<tr><th>Group</th><th>Share Δ</th><th>Margin Δ</th><th>Result</th></tr>';
+ $('sahint').textContent=has?'These shifts apply on top of the national values above, so a national move still carries into '+SEL+'. Margin Δ: + moves the group toward D, − toward R (points). Share Δ: points of the state’s electorate; shares are renormalised to 100%. Race and community-type changes stack, since they are two cuts of the same voters.':'Select a state (dropdown or click it on the map) to move its group shares or margins on their own, for example whites shifting left nationally but right in Florida.';
+ $('sareset').style.display=has?'':'none';
+ for(const[id,names,kd,km,h]of[['satab',G,'ds','dm','Group'],['satabT',TY,'ts','tm','Community']]){
+  const t=$(id);t.style.display=has?'':'none';t.innerHTML='';
+  if(!has)continue;
+  t.innerHTML=`<tr><th>${h}</th><th>Share Δ</th><th>Margin Δ</th><th>Result</th></tr>`;
   const a=S.sa[SEL];
-  G.forEach((g,i)=>{const r=t.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value="${a?a.ds[i]:0}"></td><td><input type=number step=1 value="${a?a.dm[i]:0}"></td><td class=sres></td>`;
+  names.forEach((g,i)=>{const r=t.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value="${a&&a[kd]?a[kd][i]:0}"></td><td><input type=number step=1 value="${a&&a[km]?a[km][i]:0}"></td><td class=sres></td>`;
    const[x,y]=r.querySelectorAll('input'),put=(k,v)=>{saOf(SEL)[k][i]=+v||0;if(saZero(S.sa[SEL]))delete S.sa[SEL];upd()};
-   x.oninput=()=>put('ds',x.value);y.oninput=()=>put('dm',y.value)})}
+   x.oninput=()=>put(kd,x.value);y.oninput=()=>put(km,y.value)})}
  refreshSA();
 }
 function refreshSA(){
- if(SEL&&ST[SEL]){const e=effSA(SEL);document.querySelectorAll('#satab .sres').forEach((c,i)=>c.innerHTML=`${e.sh[i].toFixed(1)}% · <span class="${e.mg[i]>0?'D':'R'}">${fmt(e.mg[i])}</span>`)}
+ if(SEL&&ST[SEL]){const r=(e,i)=>`${e.sh[i].toFixed(1)}% · <span class="${e.mg[i]>0?'D':'R'}">${fmt(e.mg[i])}</span>`;
+  for(const[id,e]of[['#satab',effSA(SEL)],['#satabT',effST(SEL)]])document.querySelectorAll(id+' .sres').forEach((c,i)=>c.innerHTML=r(e,i))}
  const L=Object.keys(S.sa).filter(k=>!saZero(S.sa[k])).sort();
  $('salist').innerHTML=L.length?'Adjusted: '+L.map(k=>`<button class="tag" data-st="${k}" style="cursor:pointer;margin:2px 3px 2px 0;background:${k===SEL?'#26324a':'transparent'};color:var(--t)">${k}</button>`).join(''):'';
 }
-function agg(list){const o={v:0,v0:0,d:0,r:0,x:0,b:0,cs:0,cn:0,s:[0,0,0,0,0],mh:{}},ac={};
+function agg(list){const o={v:0,v0:0,d:0,r:0,x:0,b:0,cs:0,cn:0,s:[0,0,0,0,0],t:[0,0,0],mh:{}},ac={};
  for(const c of list){o.v+=c.vs;o.v0+=c.v;o.d+=c.vs*c.pdS;o.r+=c.vs*c.prS;o.x+=c.vs*c.m;o.b+=c.v*c.m0;
   if(c.cvap){o.cs+=c.cvap;o.cn++}
   if(c.mh)for(const y in c.mh)if(c.mh[y]!=null){const a=ac[y]??=[0,0];a[0]+=c.v*c.mh[y];a[1]+=c.v}
-  const s=c.s||DEF;for(let i=0;i<5;i++)o.s[i]+=c.vs*s[i]}
+  const s=c.s||DEF,ty=c.ty||DEFT;for(let i=0;i<5;i++)o.s[i]+=c.vs*s[i];for(let i=0;i<3;i++)o.t[i]+=c.vs*ty[i]}
  o.m=o.x/o.v;o.b/=o.v0;for(const y in ac)o.mh[y]=ac[y][0]/ac[y][1];o.cv=o.cn===list.length?o.cs:null;return o}
 function calc(){
- const SC=SCOPE==='state',kN=S.sh.map((s,i)=>s/BASE.sh[i]),edge=(d3.mean(S.d)-d3.mean(S.r))*S.imp,by={},kS={};
- for(const st in S.sa){const e=effSA(st);kS[st]={k:e.k,mg:e.mg}}
+ const SC=SCOPE==='state',kN=S.sh.map((s,i)=>s/BASE.sh[i]),kT=S.th.map((s,i)=>s/BASE.th[i]),edge=(d3.mean(S.d)-d3.mean(S.r))*S.imp,by={},kS={};
+ for(const st in S.sa){const e=effSA(st),t=effST(st);kS[st]={k:e.k,mg:e.mg,kt:t.k,mt:t.mg}}
  for(const c of C.values()){const s=c.s||DEF,ks=kS[c.st],k=ks?ks.k:kN,mg=ks?ks.mg:S.mg;let b=0,a=0,w=0;
   s.forEach((x,i)=>{b+=x*BASE.mg[i];a+=x*k[i]*mg[i];w+=x*k[i]});
+  let tb=0,ta=0,tw=0;if(c.ty){const kt=ks?ks.kt:kT,mt=ks?ks.mt:S.tm;c.ty.forEach((x,i)=>{tb+=x*BASE.tm[i];ta+=x*kt[i]*mt[i];tw+=x*kt[i]})}
   const ref=SC?(SMEAN[c.st]??NAT):NAT,to=SC?(S.sto[c.st]||0):(S.sto[c.st]??S.to);
-  c.m=ref+(c.m0-ref)*S.lean+(w?a/w:0)-b+(SC?0:S.env)+edge+(S.st[c.st]||0);
+  c.m=ref+(c.m0-ref)*S.lean+(w?a/w:0)-b+(tw?ta/tw:0)-tb+(SC?0:S.env)+edge+(S.st[c.st]||0);
   const dm=(c.m-c.m0)/100;c.pdS=c.pd+dm/2;c.prS=c.pr-dm/2;
   c.vs=c.v*(1+to/100/(c.cvap?Math.min(.95,c.v/c.cvap):.6));(by[c.st]??=[]).push(c)}
  ST={};for(const s in by)ST[s]=agg(by[s]);ST.US=agg([...C.values()]);
@@ -334,7 +356,14 @@ function panels(){
  let shr,mgs;
  if(SEL){const e=effSA(SEL);shr=e.sh.map(x=>x/100);mgs=e.mg}
  else{const us=ST.US,rel=g.s.map((x,i)=>(x/g.v)/(us.s[i]/us.v)),sh0=S.sh.map((x,i)=>x*rel[i]),sd=d3.sum(sh0);shr=sh0.map(x=>x/sd);mgs=S.mg}
- $('sum').textContent='Shares are normalized (entered total '+d3.sum(S.sh).toFixed(1)+'%).';
+ let tsh,tmg;
+ if(SEL){const e=effST(SEL);tsh=e.sh.map(x=>x/100);tmg=e.mg}
+ else{const us=ST.US,rel=g.t.map((x,i)=>(x/g.v)/(us.t[i]/us.v)),t0=S.th.map((x,i)=>x*rel[i]),td=d3.sum(t0);tsh=t0.map(x=>x/td);tmg=S.tm}
+ $('sum').textContent='Shares are normalized (entered totals: race '+d3.sum(S.sh).toFixed(1)+'%, community type '+d3.sum(S.th).toFixed(1)+'%).';
+ $('thint').textContent=TYOK?'Community type is a second cut of the same voters, so it stacks with the race inputs above. County mix: 2020 Census urban/rural population split by land-area density. Margins: national exit polls (approximate).':'County community-type data (2020 Census) didn’t load here, so these inputs don’t move the map yet.';
+ $('dcardsT').innerHTML=TY.map((n,i)=>`<div class=gc><small>${n} voters</small><div class=n>${(tsh[i]*100).toFixed(1)}%</div><div class=k><i style="width:${Math.min(100,tsh[i]*100)}%"></i></div><small>${n0(tot*tsh[i])} voters</small><small>share of electorate</small></div>`).join('');
+ const ct=DEMOT[CMPY]?DEMOT[CMPY][1]:null;
+ $('dtabT').innerHTML=`<tr><th>Community</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${CMPY}</th><th>Shift</th></tr>`+TY.map((n,i)=>{const m=tmg[i],sh=ct?m-ct[i]:0;return `<tr><td>${n}</td><td>${(tsh[i]*100).toFixed(1)}%</td><td>${n0(tot*tsh[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${ct?fmt(ct[i]):'–'}</td><td class="${sh>0?'D':'R'}">${sh>0?'← D ':'R → '}${Math.abs(sh).toFixed(1)}</td></tr>`}).join('');
  $('dgeo').textContent=name;
  $('dcards').innerHTML=G.slice(0,4).map((n,i)=>{const v=tot*shr[i],t=SEL?null:v/NCV[i];return `<div class=gc><small>${n} voters</small><div class=n>${t==null?(shr[i]*100).toFixed(1)+'%':(t*100).toFixed(1)+'%'}</div><div class=k><i style="width:${Math.min(100,(t==null?shr[i]*100:t*100))}%"></i></div><small>${n0(v)} voters</small>${t==null?'<small>share of electorate</small>':`<small>${n0(NCV[i])} citizen adults</small>`}</div>`}).join('');
  const cd=DEMO[CMPY]?DEMO[CMPY][1]:null;
@@ -358,12 +387,15 @@ function setScope(k){
  if(paths)selState();else build();
 }
 function calcSBASE(){const t={};for(const c of ALL.values()){if(!c.s||!c.st)continue;const w=(c.R[2024]||c.R[2020]||{}).t||0;if(!w)continue;const o=t[c.st]??={w:0,s:[0,0,0,0,0]};c.s.forEach((x,i)=>o.s[i]+=w*x)}
- for(const st in t){const o=t[st],sd=d3.sum(o.s);if(sd)SBASE[st]=o.s.map(x=>x/sd*100)}}
+ for(const st in t){const o=t[st],sd=d3.sum(o.s);if(sd)SBASE[st]=o.s.map(x=>x/sd*100)}
+ const u={};TYOK=false;
+ for(const c of ALL.values()){if(!c.ty||!c.st)continue;TYOK=true;const w=(c.R[2024]||c.R[2020]||{}).t||0;if(!w)continue;const o=u[c.st]??=[0,0,0];c.ty.forEach((x,i)=>o[i]+=w*x)}
+ for(const st in u){const sd=d3.sum(u[st]);if(sd)TBASE[st]=u[st].map(x=>x/sd*100)}}
 function stateRow(n,y){const ix=IX[n];if(!ix)return null;let d,g,t;
  if(y===2024){[d,g,t]=S24[n]}else{t=NT[y]*S24[n][2]/tot24;const m=MT[n][y]/100,o=OT[y];d=t*(1-o+m)/2;g=t*(1-o-m)/2}
- return{f:ix+'000',name:n,st:n,v:t,pd:d/t,pr:g/t,m0:(d-g)/t*100,mh:MT[n],s:SBASE[n]&&SBASE[n].map(x=>x/100)}}
+ return{f:ix+'000',name:n,st:n,v:t,pd:d/t,pr:g/t,m0:(d-g)/t*100,mh:MT[n],s:SBASE[n]&&SBASE[n].map(x=>x/100),ty:TBASE[n]&&TBASE[n].map(x=>x/100)}}
 function setBase(y){
- BASEY=y;BASE.sh=[...DEMO[y][0]];BASE.mg=[...DEMO[y][1]];
+ BASEY=y;BASE.sh=[...DEMO[y][0]];BASE.mg=[...DEMO[y][1]];BASE.th=[...DEMOT[y][0]];BASE.tm=[...DEMOT[y][1]];
  const ev=EVT[y>=2024?2020:y>=2012?2010:y>=2004?2000:1990];EV=Object.fromEntries(NM.map((n,i)=>[n,ev[i]]));
  C=new Map();
  if(ALL.size&&CY.includes(y))for(const c of ALL.values()){const r=c.R[y];if(r&&r.t>0){c.v=r.t;c.pd=r.d/r.t;c.pr=r.g/r.t;c.m0=(r.d-r.g)/r.t*100;C.set(c.f,c)}}
@@ -374,11 +406,11 @@ function setBase(y){
  NAT=d3.sum(Object.values(tmp),o=>o.x)/d3.sum(Object.values(tmp),o=>o.v);
 }
 function chooseBase(y){
- setBase(y);S.sh=[...BASE.sh];S.mg=[...BASE.mg];S.sa={};CMPY=y;$('cmp').value=y;
+ setBase(y);S.sh=[...BASE.sh];S.mg=[...BASE.mg];S.th=[...BASE.th];S.tm=[...BASE.tm];S.sa={};CMPY=y;$('cmp').value=y;
  LEVEL=COUNTYOK?'counties':'states';$('lv').value=LEVEL;$('lv').querySelector('[value=counties]').disabled=!COUNTYOK;
  $('base').value=y;
  $('binfo').textContent=COUNTYOK?`County-level results for ${y}.`:y===2024?'State-level certified 2024 totals.':(y<2008?`County results for ${y} aren’t in the data source, so this runs at state level.`:`County files for ${y} didn’t load, so this uses built-in state results.`)+' State margins are typed-in approximations (about ±0.5 pt) and vote totals are estimated.';
- if(paths)selState();else build();
+ buildDemo();if(paths)selState();else build();
 }
 const get=async(urls,parse)=>{for(const u of urls){try{return await parse(u)}catch(e){console.warn(u,e)}}return null};
 function ingest(a){for(const r of a){const y=r.y?{...r.y}:{};
@@ -386,7 +418,7 @@ function ingest(a){for(const r of a){const y=r.y?{...r.y}:{};
  const R={},mh={};for(const k in y){const[d,g,t]=y[k];if(t>0){R[k]={d,g,t};mh[k]=(d-g)/t*100}}
  if(r.m2!=null&&mh[2020]==null)mh[2020]=r.m2;
  if(!Object.keys(R).length)continue;
- ALL.set(r.f,{f:r.f,name:r.n,st:r.s||SN[r.f.slice(0,2)],R,mh,s:r.sh,cvap:r.cv})}
+ ALL.set(r.f,{f:r.f,name:r.n,st:r.s||SN[r.f.slice(0,2)],R,mh,s:r.sh,cvap:r.cv,ty:r.ty})}
  calcSBASE()}
 async function live(){
  const U=['https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-24/master/','https://cdn.jsdelivr.net/gh/tonmcg/US_County_Level_Election_Results_08-24@master/'];
@@ -404,6 +436,23 @@ async function live(){
  if(dm)for(const r of dm.slice(1)){const o=M[r[5]+r[6]],t=+r[0];if(o&&t){const s=[1,2,3,4].map(i=>+r[i]/t);o.sh=[...s,Math.max(0,1-d3.sum(s))]}}
  if(cv)for(const r of cv.slice(1)){const o=M[r[1]+r[2]];if(o)o.cv=+r[0]}
  const out=Object.values(M);return out.length?out:null}
+// ---- community type (urban / suburban / rural) from Census data
+const lg=Math.log10,ramp=(d,a,b)=>Math.max(0,Math.min(1,(lg(Math.max(d,1e-9))-lg(a))/(lg(b)-lg(a))));
+function typeShares(pop,urb,area){const u=Math.min(1,urb/pop),d=pop/area,metro=u*ramp(d,...TYC.metro),core=ramp(d,...TYC.core);return[metro*core,metro*(1-core),1-metro]}
+// Fallback land area (sq mi) from the map geometry, used only if the Census land-area service can't be reached. The atlas is Albers USA at scale 1300, with Alaska drawn at 35%.
+const polyMi2=f=>{const a=pth.area(f)*(6371/1300)**2*.386102;return f.id.slice(0,2)==='02'?a/.1225:a};
+async function loadTypes(){
+ if(!ALL.size)return false;
+ if([...ALL.values()].every(c=>c.ty)){calcSBASE();return TYOK}
+ const D='https://api.census.gov/data/2020/dec/dhc?get=P2_001N,P2_002N&for=county:*',
+  L=['2020','2021'].map(v=>`https://api.census.gov/data/${v}/geoinfo?get=AREALAND_SQMI&for=county:*`);
+ const[dh,ga]=await Promise.all([get([D],d3.json),get(L,d3.json)]);
+ if(!dh)return false;
+ const A={};if(ga)for(const r of ga.slice(1))A[r[1]+r[2]]=+r[0];
+ const gm=new Map(geo.map(d=>[d.id,d]));
+ for(const r of dh.slice(1)){const c=ALL.get(r[2]+r[3]);if(!c||c.ty)continue;const pop=+r[0],urb=+r[1];if(!(pop>0))continue;
+  const a=A[c.f]>0?A[c.f]:gm.has(c.f)?polyMi2(gm.get(c.f)):0;if(a>0)c.ty=typeShares(pop,urb,a)}
+ calcSBASE();return TYOK}
 async function main(){
  const tp=await get(['data/counties-albers-10m.json','https://cdn.jsdelivr.net/npm/us-atlas@3/counties-albers-10m.json','https://unpkg.com/us-atlas@3/counties-albers-10m.json'],d3.json);
  if(!tp){$('msg').textContent='Could not load county geometry. Open this page from GitHub Pages or a local server (not file://), and make sure scripts/data are not blocked.';return}
@@ -414,7 +463,7 @@ async function main(){
  paths=z.selectAll('.c').data(geo).join('path').attr('class','c').attr('d',pth).attr('fill',NA).attr('stroke','#0a121f').attr('stroke-width',.3);
  const tipFn=(e,d)=>{const c=UV(d),t=$('tip');t.style.display='block';t.style.left=Math.min(e.clientX+12,innerWidth-240)+'px';t.style.top=e.clientY+12+'px';
   const b=c&&c.mh?c.mh[CMPY]:null;
-  t.innerHTML=c?`<b>${LEVEL==='counties'?c.name+', '+c.st:c.name}</b><br><span class=D>${n0(c.vs*c.pdS)} (${(c.pdS*100).toFixed(1)}%)</span> D<br><span class=R>${n0(c.vs*c.prS)} (${(c.prS*100).toFixed(1)}%)</span> R<br>Margin ${fmt(c.m)} · ${BASEY} ${fmt(c.m0)}${b!=null&&CMPY!==BASEY?' · '+CMPY+' '+fmt(b):''}<br>${n0(c.vs)} votes${c.cvap?' · turnout '+(c.vs/c.cvap*100).toFixed(1)+'%':''}`:`${SN[d.id.slice(0,2)]||''} (no county data)`};
+  t.innerHTML=c?`<b>${LEVEL==='counties'?c.name+', '+c.st:c.name}</b><br><span class=D>${n0(c.vs*c.pdS)} (${(c.pdS*100).toFixed(1)}%)</span> D<br><span class=R>${n0(c.vs*c.prS)} (${(c.prS*100).toFixed(1)}%)</span> R<br>Margin ${fmt(c.m)} · ${BASEY} ${fmt(c.m0)}${b!=null&&CMPY!==BASEY?' · '+CMPY+' '+fmt(b):''}<br>${n0(c.vs)} votes${c.ty?'<br>'+TY.map((n,i)=>n+' '+(c.ty[i]*100).toFixed(0)+'%').join(' · '):''}${c.cvap?' · turnout '+(c.vs/c.cvap*100).toFixed(1)+'%':''}`:`${SN[d.id.slice(0,2)]||''} (no county data)`};
  const pick=(e,d)=>{SEL=SN[d.id.slice(0,2)]||'';$('sel').value=SEL;selState()},hide=()=>$('tip').style.display='none';
  sf.forEach(d=>d._c=pth.centroid(d));
  sp=d3.select('#zs').selectAll('path').data(sf).join('path').attr('d',pth).attr('fill',NA).attr('stroke','#0a121f').attr('stroke-width',.6).style('cursor','pointer').on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
@@ -432,6 +481,7 @@ async function main(){
  if(!ALL.size)$('msg').textContent='County data could not be downloaded here (blocked in this preview). Showing real 2024 state results and built-in historical state results; counties unlock on GitHub Pages or after running build_data.py and committing data/.';
  else $('msg').style.display='none';
  chooseBase(2024);
+ loadTypes().then(ok=>{if(ok)upd()}).catch(e=>console.warn('community type',e));
 }
 $('modes').innerHTML=Object.entries(MODES).map(([k,v])=>`<button data-k=${k} class="${k===MODE?'on':''}">${v}</button>`).join('');
 $('modes').onclick=e=>{const k=e.target.dataset.k;if(!k)return;MODE=k;document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));if(C.size)paint()};
