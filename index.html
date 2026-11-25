@@ -29,20 +29,27 @@ button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px
 .gd{float:right;border:1px solid #7fd6b0;color:#7fd6b0;border-radius:6px;padding:1px 8px;font:600 14px Georgia,serif;letter-spacing:0}
 .bk{height:6px;background:#26324a;border-radius:3px}.bk i{display:block;height:100%;background:var(--g);border-radius:3px}
 #msg{padding:24px;color:var(--m)}
+.hint{font-size:11px;color:var(--m);margin-top:6px;line-height:1.4}
 </style></head><body>
-<header><h1>Election Simulator</h1><small>Partisan lean · campaign quality · national environment · turnout · demographics</small></header>
+<header><h1>Election Simulator</h1><small>Elections 2000–2024 · partisan lean · campaign quality · national environment · turnout · demographics · national or single-state mode</small></header>
 <main>
 <div>
+ <div class="card"><h2>Simulation</h2>
+  <div class="tabs" id="scope"><button data-k="national" class="on">National</button><button data-k="state">Individual state</button></div>
+  <label>Starting election (baseline results)<select id="base"></select></label>
+  <div class="hint" id="binfo"></div>
+ </div>
  <div class="card"><h2>State</h2><select id="sel"><option value="">United States</option></select><div id="sinfo" style="margin-top:8px;color:var(--m)"></div><div id="sadj"></div></div>
- <div class="card"><h2>National</h2><div id="nat"></div></div>
+ <div class="card" id="natcard"><h2>National</h2><div id="nat"></div></div>
+ <div class="card" id="stcard" style="display:none"><h2>State race</h2><div id="stc"></div></div>
  <div class="card"><h2>Democratic campaign <span class="gd" id="gdD"></span></h2><input type="text" id="dn" value="Democrat"><div id="cd"></div></div>
  <div class="card"><h2>Republican campaign <span class="gd" id="gdR"></span></h2><input type="text" id="rn" value="Republican"><div id="cr"></div></div>
- <div class="card"><h2>Demographic electorate (national)</h2><table id="demo"></table><small id="sum" style="color:var(--m)"></small><br><br><button id="reset">Reset all</button></div>
+ <div class="card"><h2 id="dtitle">Demographic electorate (national)</h2><table id="demo"></table><small id="sum" style="color:var(--m)"></small><br><br><button id="reset">Reset all</button></div>
 </div>
 <div>
  <div class="card" style="padding:8px">
   <div class="tabs" id="modes"></div>
-  <div class="row"><span>View</span><select id="lv"><option value="states">States</option><option value="counties">Counties</option></select><span>Compare with</span><select id="cmp"><option value="2024">2024 actual</option><option value="2020">2020</option></select>
+  <div class="row"><span>View</span><select id="lv"><option value="states">States</option><option value="counties">Counties</option></select><span>Compare with</span><select id="cmp"></select>
    <label><input type="checkbox" id="arr"> Shift arrows (blue ← D, red → R)</label><div id="leg"></div><span id="legt"></span></div>
   <svg id="map" viewBox="0 0 975 610"><g id="zz"><g id="z"></g><g id="zs"></g></g></svg><div id="msg">Loading…</div>
  </div>
@@ -50,187 +57,330 @@ button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px
 </div>
 <div>
  <div class="card" id="rr"></div>
- <div class="card"><h2>Closest states</h2><table id="close"></table></div>
+ <div class="card"><h2 id="ctitle">Closest states</h2><table id="close"></table></div>
  <div class="card"><h2>Uncertainty</h2><button id="mc">Run 2,000 simulations</button><div id="mcr" style="margin-top:8px"></div></div>
 </div></main><div id="tip"></div>
 <script>
 const $=id=>document.getElementById(id);
 const G=['White','Black','Hispanic','Asian','Other'],F=['Message clarity','Policy substance','Audience connection','Coherence & judgment','Written execution'];
-const BASE={sh:[71,11,12,3,3],mg:[-12,70,6,18,-5]},B20=[-17,79,33,34,0],NCV=[157845332,29607116,33753153,11654239,0],DEF=BASE.sh.map(x=>x/100);
-const EV=Object.fromEntries("Alabama:9,Alaska:3,Arizona:11,Arkansas:6,California:54,Colorado:10,Connecticut:7,Delaware:3,District of Columbia:3,Florida:30,Georgia:16,Hawaii:4,Idaho:4,Illinois:19,Indiana:11,Iowa:6,Kansas:6,Kentucky:8,Louisiana:8,Maine:4,Maryland:10,Massachusetts:11,Michigan:15,Minnesota:10,Mississippi:6,Missouri:10,Montana:4,Nebraska:5,Nevada:6,New Hampshire:4,New Jersey:14,New Mexico:5,New York:28,North Carolina:16,North Dakota:3,Ohio:17,Oklahoma:7,Oregon:8,Pennsylvania:19,Rhode Island:4,South Carolina:9,South Dakota:3,Tennessee:11,Texas:40,Utah:6,Vermont:3,Virginia:13,Washington:12,West Virginia:4,Wisconsin:10,Wyoming:3".split(',').map(s=>{const i=s.lastIndexOf(':');return[s.slice(0,i),+s.slice(i+1)]}));
-const ST24=`Alabama,772412,1462616,2265090,-25.4
-Alaska,140026,184458,338177,-10.0
-Arizona,1582860,1770242,3390161,0.3
-Arkansas,396905,759241,1182676,-27.6
-California,9276179,6081697,15865475,29.2
-Colorado,1728159,1377441,3192745,13.5
-Connecticut,992053,736918,1759010,20.1
-Delaware,289758,214351,511697,19.0
-District of Columbia,294185,21076,325869,86.8
-Florida,4683038,6110125,10893752,-3.4
-Georgia,2548017,2663117,5250047,0.2
-Hawaii,313044,193661,516701,29.5
-Idaho,274972,605246,904812,-30.7
-Illinois,3062863,2449079,5633310,17.0
-Indiana,1163603,1720347,2936677,-16.0
-Iowa,707278,927019,1663506,-8.2
-Kansas,544853,758802,1327591,-14.6
-Kentucky,704043,1337494,2074530,-25.9
-Louisiana,766870,1208505,2006975,-18.6
-Maine,435652,377977,830794,9.1
-Maryland,1902577,1035550,3038334,33.2
-Massachusetts,2126518,1251303,3473668,33.5
-Michigan,2736533,2816636,5664186,2.8
-Minnesota,1656979,1519032,3253920,7.1
-Mississippi,466668,747744,1228008,-16.5
-Missouri,1200599,1751986,2995327,-15.4
-Montana,231906,352079,602963,-16.4
-Nebraska,369995,564816,947159,-19.1
-Nevada,705197,751205,1484840,2.4
-New Hampshire,418488,395523,826189,7.4
-New Jersey,2220713,1968215,4272725,15.9
-New Mexico,478802,423391,923403,10.8
-New York,4619195,3578899,8262495,23.2
-North Carolina,2715375,2898423,5699141,-1.3
-North Dakota,112327,246505,368155,-33.4
-Ohio,2533699,3180116,5767788,-8.0
-Oklahoma,499599,1036213,1566173,-33.1
-Oregon,1240600,919480,2244493,16.1
-Pennsylvania,3423042,3543308,7034206,1.2
-Rhode Island,285156,214406,513386,20.8
-South Carolina,1028452,1483747,2548140,-11.7
-South Dakota,146859,272081,428922,-26.2
-Tennessee,1056265,1966865,3063942,-23.2
-Texas,4835250,6393597,11388674,-5.6
-Utah,562566,883818,1488494,-20.5
-Vermont,235791,119395,369422,35.1
-Virginia,2335395,2075085,4505941,10.1
-Washington,2245849,1530923,3924243,19.2
-West Virginia,214309,533556,762390,-38.9
-Wisconsin,1668229,1697626,3415787,0.6
-Wyoming,69527,192633,269048,-43.4`; // 2024: American Presidency Project (certified totals); 2020 margins rounded, approximate
+const YEARS=[2000,2004,2008,2012,2016,2020,2024],CY=[2008,2012,2016,2020,2024]; // CY = years with county-level files in the data source
+// National group shares (%) and D margins per election: approximate exit-poll style figures, editable in the UI.
+const DEMO={2000:[[80,10,7,2,1],[-12,82,36,14,17]],2004:[[77,11,8,2,2],[-17,77,9,12,13]],2008:[[74,13,9,2,2],[-12,91,36,27,35]],2012:[[72,13,10,3,2],[-20,87,44,47,20]],2016:[[70,12,11,4,3],[-20,80,36,38,19]],2020:[[67,12,13,4,4],[-17,79,33,34,0]],2024:[[71,11,12,3,3],[-12,70,6,18,-5]]};
+const NCV=[157845332,29607116,33753153,11654239,0],DEF=DEMO[2024][0].map(x=>x/100);
+const BASE={sh:[...DEMO[2024][0]],mg:[...DEMO[2024][1]]};
+const NM="Alabama,Alaska,Arizona,Arkansas,California,Colorado,Connecticut,Delaware,District of Columbia,Florida,Georgia,Hawaii,Idaho,Illinois,Indiana,Iowa,Kansas,Kentucky,Louisiana,Maine,Maryland,Massachusetts,Michigan,Minnesota,Mississippi,Missouri,Montana,Nebraska,Nevada,New Hampshire,New Jersey,New Mexico,New York,North Carolina,North Dakota,Ohio,Oklahoma,Oregon,Pennsylvania,Rhode Island,South Carolina,South Dakota,Tennessee,Texas,Utah,Vermont,Virginia,Washington,West Virginia,Wisconsin,Wyoming".split(',');
+// Electoral votes by apportionment (same alphabetical order as NM): 2000 election, 2004/08, 2012/16/20, 2024
+const EVT={1990:[9,3,8,6,54,8,8,3,3,25,13,4,4,22,12,7,6,8,9,4,10,12,18,10,7,11,3,5,4,4,15,5,33,14,3,21,8,7,23,4,8,3,11,32,5,3,13,11,5,11,3],
+2000:[9,3,10,6,55,9,7,3,3,27,15,4,4,21,11,7,6,8,9,4,10,12,17,10,6,11,3,5,5,4,15,5,31,15,3,20,7,7,21,4,8,3,11,34,5,3,13,11,5,10,3],
+2010:[9,3,11,6,55,9,7,3,3,29,16,4,4,20,11,6,6,8,8,4,10,11,16,10,6,10,3,5,6,4,14,5,29,15,3,18,7,7,20,4,9,3,11,38,6,3,13,12,5,10,3],
+2020:[9,3,11,6,54,10,7,3,3,30,16,4,4,19,11,6,6,8,8,4,10,11,15,10,6,10,4,5,6,4,14,5,28,16,3,17,7,8,19,4,9,3,11,40,6,3,13,12,4,10,3]};
+// State margins (D minus R, points) for 2000, 2004, 2008, 2012, 2016, 2020. Typed from memory: approximate (about +/-0.5 pt).
+const HMT=`Alabama,-15.1,-25.6,-21.6,-22.2,-27.7,-25.4
+Alaska,-30.9,-25.5,-21.5,-14.0,-14.7,-10.0
+Arizona,-6.3,-10.5,-8.5,-9.0,-3.5,0.3
+Arkansas,-5.4,-9.8,-19.9,-23.7,-26.9,-27.6
+California,11.7,9.9,24.1,23.1,30.1,29.2
+Colorado,-8.4,-4.7,9.0,5.4,4.9,13.5
+Connecticut,17.5,10.4,22.4,17.3,13.6,20.1
+Delaware,13.0,7.6,25.0,18.6,11.4,19.0
+District of Columbia,76.2,79.8,85.9,83.6,86.8,86.8
+Florida,-0.01,-5.0,2.8,0.9,-1.2,-3.4
+Georgia,-11.7,-16.6,-5.2,-7.8,-5.1,0.2
+Hawaii,18.3,8.7,45.3,42.7,32.2,29.5
+Idaho,-39.6,-38.1,-25.4,-31.9,-31.8,-30.7
+Illinois,12.0,10.3,25.1,16.9,17.1,17.0
+Indiana,-15.6,-20.7,1.0,-10.2,-19.2,-16.0
+Iowa,0.3,-0.7,9.5,5.8,-9.4,-8.2
+Kansas,-20.8,-25.4,-14.9,-21.7,-20.6,-14.6
+Kentucky,-15.1,-19.9,-16.2,-22.7,-29.8,-25.9
+Louisiana,-7.7,-14.5,-18.6,-17.2,-19.6,-18.6
+Maine,5.1,9.0,17.3,15.3,2.9,9.1
+Maryland,16.4,13.0,25.4,25.2,26.4,33.2
+Massachusetts,27.3,25.2,25.8,23.1,27.2,33.5
+Michigan,5.2,3.4,16.4,9.5,-0.2,2.8
+Minnesota,2.4,3.5,10.2,7.7,1.5,7.1
+Mississippi,-16.9,-19.7,-13.0,-11.5,-17.8,-16.5
+Missouri,-3.3,-7.2,-0.1,-9.4,-18.6,-15.4
+Montana,-25.1,-20.5,-2.3,-13.6,-20.4,-16.4
+Nebraska,-29.0,-33.2,-14.9,-21.8,-25.1,-19.1
+Nevada,-3.5,-2.6,12.5,6.7,2.4,2.4
+New Hampshire,-1.3,1.4,9.6,5.6,0.4,7.4
+New Jersey,15.8,6.7,15.5,17.7,14.1,15.9
+New Mexico,0.06,-0.8,15.1,10.1,8.3,10.8
+New York,25.0,18.3,26.9,28.2,22.5,23.2
+North Carolina,-12.8,-12.4,0.3,-2.0,-3.7,-1.3
+North Dakota,-27.6,-27.4,-8.6,-19.6,-35.7,-33.4
+Ohio,-3.6,-2.1,4.6,3.0,-8.1,-8.0
+Oklahoma,-21.9,-31.1,-31.3,-33.5,-36.4,-33.1
+Oregon,0.4,4.2,16.4,12.1,11.0,16.1
+Pennsylvania,4.2,2.5,10.3,5.4,-0.7,1.2
+Rhode Island,29.1,20.8,27.8,27.5,15.5,20.8
+South Carolina,-15.9,-17.1,-9.0,-10.5,-14.3,-11.7
+South Dakota,-22.6,-21.5,-8.4,-18.0,-29.8,-26.2
+Tennessee,-3.8,-14.3,-15.1,-20.4,-26.0,-23.2
+Texas,-21.3,-22.9,-11.8,-15.8,-9.0,-5.6
+Utah,-40.7,-45.5,-28.0,-48.0,-17.9,-20.5
+Vermont,9.9,20.1,35.2,35.6,26.4,35.1
+Virginia,-8.0,-8.2,6.3,3.9,5.3,10.1
+Washington,5.6,7.2,17.1,14.9,15.7,19.2
+West Virginia,-6.3,-12.9,-13.1,-26.8,-42.1,-38.9
+Wisconsin,0.2,0.4,13.9,6.9,-0.8,0.6
+Wyoming,-40.1,-39.8,-32.3,-41.3,-46.3,-43.4`;
+const HM={};HMT.split('\n').forEach(l=>{const p=l.split(',');HM[p[0]]=p.slice(1).map(Number)});
+const ST24=`Alabama,772412,1462616,2265090
+Alaska,140026,184458,338177
+Arizona,1582860,1770242,3390161
+Arkansas,396905,759241,1182676
+California,9276179,6081697,15865475
+Colorado,1728159,1377441,3192745
+Connecticut,992053,736918,1759010
+Delaware,289758,214351,511697
+District of Columbia,294185,21076,325869
+Florida,4683038,6110125,10893752
+Georgia,2548017,2663117,5250047
+Hawaii,313044,193661,516701
+Idaho,274972,605246,904812
+Illinois,3062863,2449079,5633310
+Indiana,1163603,1720347,2936677
+Iowa,707278,927019,1663506
+Kansas,544853,758802,1327591
+Kentucky,704043,1337494,2074530
+Louisiana,766870,1208505,2006975
+Maine,435652,377977,830794
+Maryland,1902577,1035550,3038334
+Massachusetts,2126518,1251303,3473668
+Michigan,2736533,2816636,5664186
+Minnesota,1656979,1519032,3253920
+Mississippi,466668,747744,1228008
+Missouri,1200599,1751986,2995327
+Montana,231906,352079,602963
+Nebraska,369995,564816,947159
+Nevada,705197,751205,1484840
+New Hampshire,418488,395523,826189
+New Jersey,2220713,1968215,4272725
+New Mexico,478802,423391,923403
+New York,4619195,3578899,8262495
+North Carolina,2715375,2898423,5699141
+North Dakota,112327,246505,368155
+Ohio,2533699,3180116,5767788
+Oklahoma,499599,1036213,1566173
+Oregon,1240600,919480,2244493
+Pennsylvania,3423042,3543308,7034206
+Rhode Island,285156,214406,513386
+South Carolina,1028452,1483747,2548140
+South Dakota,146859,272081,428922
+Tennessee,1056265,1966865,3063942
+Texas,4835250,6393597,11388674
+Utah,562566,883818,1488494
+Vermont,235791,119395,369422
+Virginia,2335395,2075085,4505941
+Washington,2245849,1530923,3924243
+West Virginia,214309,533556,762390
+Wisconsin,1668229,1697626,3415787
+Wyoming,69527,192633,269048`; // 2024: American Presidency Project (certified totals)
+const S24={};let tot24=0;ST24.split('\n').forEach(l=>{const p=l.split(',');S24[p[0]]=[+p[1],+p[2],+p[3]];tot24+=+p[3]});
+// National turnout (approx.) and third-party share used only when a historical year falls back to the built-in state table.
+const NT={2000:105.4e6,2004:122.3e6,2008:131.3e6,2012:129.1e6,2016:136.7e6,2020:158.4e6},OT={2000:.04,2004:.01,2008:.02,2012:.02,2016:.05,2020:.02};
+const MT={};NM.forEach(n=>{MT[n]={};YEARS.slice(0,6).forEach((y,i)=>MT[n][y]=HM[n][i]);const[d,g,t]=S24[n];MT[n][2024]=(d-g)/t*100});
 const MODES={margin:'Vote margin',turnout:'Turnout',swing:'Swing',lead:'Size of lead',flips:'Flips',vsstate:'County vs. state'};
-const init=()=>({env:0,lean:1,imp:.3,to:0,st:{},sh:[...BASE.sh],mg:[...BASE.mg],d:[80,80,80,80,80],r:[80,80,80,80,80]});
-let LEVEL='counties',STATEONLY=false,sp,S=init(),C=new Map(),ST={},NAT=0,paths,geo,sf,SN={},SEL='',MODE='margin',svg,zm,pth;
+const init=()=>({env:0,lean:1,imp:.3,to:0,st:{},sto:{},ov:{},race:'',sh:[...BASE.sh],mg:[...BASE.mg],d:[80,80,80,80,80],r:[80,80,80,80,80]});
+let LEVEL='counties',COUNTYOK=false,sp,S=init(),C=new Map(),ALL=new Map(),ST={},NAT=0,paths,geo,sf,SN={},IX={},SEL='',MODE='margin',svg,zm,pth,SCOPE='national',BASEY=2024,CMPY=2024,EV={},SMEAN={},SBASE={};
 const dv=(a)=>d3.scaleDiverging(d3.interpolateRdBu).domain([-a,0,a]);
 const col=dv(40),sw=dv(15),vss=dv(20),ld=dv(5.5),tu=d3.scaleSequential(d3.interpolatePurples).domain([.35,.85]);
 const fmt=m=>(m>=0?'D+':'R+')+Math.abs(m).toFixed(1),n0=x=>Math.round(x).toLocaleString(),gr=x=>x>=90?'A':x>=80?'B':x>=70?'C':x>=60?'D':'F',NA='#cfcbc2';
 function sl(l,min,max,step,v,cb){const d=document.createElement('label');d.innerHTML=`${l}<b>${v}</b><input type=range min=${min} max=${max} step=${step} value=${v}>`;const i=d.lastChild,b=d.firstElementChild;i.oninput=()=>{b.textContent=i.value;cb(+i.value);upd()};return d}
+const ovOf=st=>S.ov[st]??=(()=>{const b=SBASE[st]?[...SBASE[st]]:[...BASE.sh];return{base:b,sh:[...b],mg:[...S.mg]}})();
 function build(){
- for(const id of['nat','cd','cr'])$(id).innerHTML='';
+ for(const id of['nat','cd','cr','stc'])$(id).innerHTML='';
  $('nat').append(sl('National environment (− R / + D pts)',-15,15,.5,S.env,v=>S.env=v),sl('Partisan lean strength (×)',.5,1.5,.05,S.lean,v=>S.lean=v),sl('Candidate impact (pts per score pt)',0,1,.05,S.imp,v=>S.imp=v),sl('Turnout change (pts of eligible voters)',-10,10,.5,S.to,v=>S.to=v));
  F.forEach((f,i)=>{$('cd').append(sl(f,0,100,1,S.d[i],v=>S.d[i]=v));$('cr').append(sl(f,0,100,1,S.r[i],v=>S.r[i]=v))});
- const t=$('demo');t.innerHTML='<tr><th>Group</th><th>Electorate %</th><th>D margin</th></tr>';
- G.forEach((g,i)=>{const r=t.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value=${S.sh[i]}></td><td><input type=number step=1 value=${S.mg[i]}></td>`;
-  const[a,b]=r.querySelectorAll('input');a.oninput=()=>{S.sh[i]=+a.value||0;upd()};b.oninput=()=>{S.mg[i]=+b.value||0;upd()}});
+ if(SCOPE==='state'&&SEL){
+  const rl=document.createElement('label');rl.innerHTML='Race name (label only)<input type=text placeholder="e.g. 2026 Texas Senate">';const ri=rl.lastChild;ri.value=S.race;ri.oninput=()=>{S.race=ri.value;upd()};
+  const rb=document.createElement('button');rb.textContent='Reset this state’s electorate';rb.style.marginTop='8px';rb.onclick=()=>{delete S.ov[SEL];build();upd()};
+  const hint=document.createElement('div');hint.className='hint';hint.textContent='Only '+SEL+' is simulated. The state environment and turnout apply to this state alone; edit its electorate (group shares and margins) in the demographic card below.';
+  $('stc').append(rl,sl('State environment (− R / + D pts)',-25,25,.5,S.st[SEL]||0,v=>S.st[SEL]=v),sl('Partisan lean strength (× around state average)',.5,1.5,.05,S.lean,v=>S.lean=v),sl('Candidate impact (pts per score pt)',0,1,.05,S.imp,v=>S.imp=v),sl('Turnout change (pts of eligible voters)',-15,15,.5,S.sto[SEL]||0,v=>{if(v)S.sto[SEL]=v;else delete S.sto[SEL]}),rb,hint)}
+ buildDemo();
 }
-function agg(list){const o={v:0,v0:0,d:0,r:0,x:0,b:0,x2:0,w2:0,cs:0,cn:0,s:[0,0,0,0,0]};
- for(const c of list){o.v+=c.vs;o.v0+=c.v;o.d+=c.vs*c.pdS;o.r+=c.vs*c.prS;o.x+=c.vs*c.m;o.b+=c.v*c.m0;if(c.m20!=null){o.x2+=c.v*c.m20;o.w2+=c.v}if(c.cvap){o.cs+=c.cvap;o.cn++}const s=c.s||DEF;for(let i=0;i<5;i++)o.s[i]+=c.vs*s[i]}
- o.m=o.x/o.v;o.b/=o.v0;o.m20=o.w2?o.x2/o.w2:null;o.cv=o.cn===list.length?o.cs:null;return o}
+function buildDemo(){
+ const t=$('demo'),sc=SCOPE==='state'&&SEL,o=sc?S.ov[SEL]:null;
+ const sh=sc?(o?o.sh:(SBASE[SEL]||BASE.sh)):S.sh,mg=sc?(o?o.mg:S.mg):S.mg;
+ $('dtitle').textContent=sc?'Demographic electorate ('+SEL+')':'Demographic electorate (national)';
+ t.innerHTML='<tr><th>Group</th><th>Electorate %</th><th>D margin</th></tr>';
+ G.forEach((g,i)=>{const r=t.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value="${(+sh[i]).toFixed(1)}"></td><td><input type=number step=1 value="${(+mg[i]).toFixed(0)}"></td>`;
+  const[a,b]=r.querySelectorAll('input'),tgt=()=>sc?ovOf(SEL):S;
+  a.oninput=()=>{tgt().sh[i]=+a.value||0;upd()};b.oninput=()=>{tgt().mg[i]=+b.value||0;upd()}});
+}
+function agg(list){const o={v:0,v0:0,d:0,r:0,x:0,b:0,cs:0,cn:0,s:[0,0,0,0,0],mh:{}},ac={};
+ for(const c of list){o.v+=c.vs;o.v0+=c.v;o.d+=c.vs*c.pdS;o.r+=c.vs*c.prS;o.x+=c.vs*c.m;o.b+=c.v*c.m0;
+  if(c.cvap){o.cs+=c.cvap;o.cn++}
+  if(c.mh)for(const y in c.mh)if(c.mh[y]!=null){const a=ac[y]??=[0,0];a[0]+=c.v*c.mh[y];a[1]+=c.v}
+  const s=c.s||DEF;for(let i=0;i<5;i++)o.s[i]+=c.vs*s[i]}
+ o.m=o.x/o.v;o.b/=o.v0;for(const y in ac)o.mh[y]=ac[y][0]/ac[y][1];o.cv=o.cn===list.length?o.cs:null;return o}
 function calc(){
- const k=S.sh.map((s,i)=>s/BASE.sh[i]),edge=(d3.mean(S.d)-d3.mean(S.r))*S.imp,by={};
- for(const c of C.values()){const s=c.s||DEF;let b=0,a=0,w=0;
-  s.forEach((x,i)=>{b+=x*BASE.mg[i];a+=x*k[i]*S.mg[i];w+=x*k[i]});
-  c.m=NAT+(c.m0-NAT)*S.lean+(w?a/w:0)-b+S.env+edge+(S.st[c.st]||0);
+ const SC=SCOPE==='state',kN=S.sh.map((s,i)=>s/BASE.sh[i]),edge=(d3.mean(S.d)-d3.mean(S.r))*S.imp,by={},kS={};
+ for(const st in S.ov){const o=S.ov[st];kS[st]=o.sh.map((x,i)=>x/(o.base[i]||1))}
+ for(const c of C.values()){const s=c.s||DEF,k=kS[c.st]||kN,mg=S.ov[c.st]?S.ov[c.st].mg:S.mg;let b=0,a=0,w=0;
+  s.forEach((x,i)=>{b+=x*BASE.mg[i];a+=x*k[i]*mg[i];w+=x*k[i]});
+  const ref=SC?(SMEAN[c.st]??NAT):NAT,to=SC?(S.sto[c.st]||0):(S.sto[c.st]??S.to);
+  c.m=ref+(c.m0-ref)*S.lean+(w?a/w:0)-b+(SC?0:S.env)+edge+(S.st[c.st]||0);
   const dm=(c.m-c.m0)/100;c.pdS=c.pd+dm/2;c.prS=c.pr-dm/2;
-  c.vs=c.v*(1+S.to/100/(c.cvap?Math.min(.95,c.v/c.cvap):.6));(by[c.st]??=[]).push(c)}
+  c.vs=c.v*(1+to/100/(c.cvap?Math.min(.95,c.v/c.cvap):.6));(by[c.st]??=[]).push(c)}
  ST={};for(const s in by)ST[s]=agg(by[s]);ST.US=agg([...C.values()]);
 }
 const flip=(c,b)=>b!=null&&(c.m>0)!==(b>0);
-const UV=d=>{if(LEVEL==='counties')return C.get(d.id);const o=ST[SN[d.id]];return o&&{m:o.m,m0:o.b,m20:o.m20,vs:o.v,cvap:o.cv,pdS:o.d/o.v,prS:o.r/o.v,name:SN[d.id],st:SN[d.id]}};
+const UV=d=>{if(LEVEL==='counties')return C.get(d.id);const n=SN[d.id],o=ST[n];return o&&{m:o.m,m0:o.b,mh:{...MT[n],...o.mh},vs:o.v,cvap:o.cv,pdS:o.d/o.v,prS:o.r/o.v,name:n,st:n}};
 function paint(){
- const cmp=$('cmp').value,Bm=c=>cmp==='2020'?c.m20:c.m0,st=LEVEL==='states',P=st?sp:paths;
- d3.select('#z').style('display',st?'none':null);d3.select('#zs').style('display',st?null:'none');
- P.attr('fill',d=>{const c=UV(d);
+ const Bm=c=>c.mh?c.mh[CMPY]:null,st=LEVEL==='states',P=st?sp:paths,SC=SCOPE==='state',inSel=id=>!SC||SN[id.slice(0,2)]===SEL;
+ d3.select('#z').style('display',st?'none':null);d3.select('#zs').style('display',st?null:'none');d3.select('#mesh').style('display',SC?'none':null);
+ const sfo=SEL&&sf.find(f=>f.properties.name===SEL);d3.select('#outl').attr('d',SC&&sfo?pth(sfo):'');
+ P.style('display',d=>inSel(d.id)?null:'none')
+  .attr('fill',d=>{const c=UV(d);
   if(!c){const g=ST[SN[d.id.slice(0,2)]];return g&&MODE==='margin'?col(g.m):NA}
   const b=Bm(c);
   switch(MODE){case'margin':return col(c.m);case'turnout':return c.cvap?tu(c.vs/c.cvap):NA;
    case'swing':return b==null?NA:sw(c.m-b);case'lead':return ld(Math.sign(c.m)*Math.log10(1+Math.abs(c.m)/100*c.vs));
-   case'vsstate':return st?NA:vss(c.m-ST[c.st].m);
+   case'vsstate':return st||!ST[c.st]?NA:vss(c.m-ST[c.st].m);
    case'flips':return b==null?NA:c.m>0?(b>0?'#a9cdea':'#1b5fa6'):(b>0?'#a61e34':'#f2a8b3')}})
   .attr('stroke',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?'#d9a400':'#fff'})
   .attr('stroke-width',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?.9:st?.5:.15})
   .attr('opacity',d=>!SEL||SN[d.id.slice(0,2)]===SEL?1:.3);
- const L={margin:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R+40 → D+40'],turnout:['linear-gradient(90deg,#f2f0f7,#54278f)','35% → 85% of eligible voters'],swing:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R shift ← → D shift (±15)'],lead:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Bigger vote lead = darker'],vsstate:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Redder/bluer than own state'],flips:['linear-gradient(90deg,#f2a8b3,#a61e34,#1b5fa6,#a9cdea)','Gold outline = county flipped (strong colors)']}[MODE];
+ const L={margin:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R+40 → D+40'],turnout:['linear-gradient(90deg,#f2f0f7,#54278f)','35% → 85% of eligible voters'],swing:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R shift ← → D shift (±15)'],lead:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Bigger vote lead = darker'],vsstate:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Redder/bluer than own state'],flips:['linear-gradient(90deg,#f2a8b3,#a61e34,#1b5fa6,#a9cdea)','Gold outline = flipped vs '+CMPY+' (strong colors)']}[MODE];
  $('leg').style.background=L[0];$('legt').textContent=L[1];
- const a=$('arr').checked?(st?sf:geo).filter(d=>{const c=UV(d);return c&&Bm(c)!=null}):[];
+ const a=$('arr').checked?(st?sf:geo).filter(d=>{const c=UV(d);return c&&Bm(c)!=null&&inSel(d.id)}):[];
  const g=d3.select('#zz').selectAll('.ar').data(a,d=>d.id);g.exit().remove();
  g.enter().append('path').attr('class','ar').attr('fill','none').attr('stroke-width',.7).attr('pointer-events','none').merge(g)
   .attr('stroke',d=>{const c=UV(d);return c.m-Bm(c)>0?'#0b3d91':'#9b1c31'})
   .attr('d',d=>{const c=UV(d),L=Math.max(-18,Math.min(18,-(c.m-Bm(c))*.6)),[x,y]=d._c,h=L>0?-2.5:2.5;return `M${x},${y}h${L}m0,0l${h},-1.8m${-h},1.8l${h},1.8`});
 }
 function panels(){
- const dn=$('dn').value,rn=$('rn').value,g=ST[SEL||'US'],name=SEL||'United States',tot=g.v,mg=(g.d-g.r)/tot*100,dw=g.d>g.r,hold=(g.b>0)===dw,ot=tot-g.d-g.r;
+ const SC=SCOPE==='state',dn=$('dn').value,rn=$('rn').value,g=ST[SEL||'US'];if(!g)return;
+ const name=SEL||'United States',tot=g.v,mg=(g.d-g.r)/tot*100,dw=g.d>g.r,hold=(g.b>0)===dw,ot=tot-g.d-g.r,race=SC?(S.race||'President'):'President';
  const row=(nm,v,c,w)=>`<div class=cand><span class=${c}>${nm}${w?' ✓':''}</span><b class=${c}>${(v/tot*100).toFixed(2)}%</b><small>${n0(v)} votes</small></div>`;
  let ev='';if(!SEL){let D=0,R=0;for(const s in ST)if(s!=='US')(ST[s].m>0?D+=EV[s]||0:R+=EV[s]||0);
-  ev=`<div style="font:600 28px Georgia,serif"><span class=D>${D}</span> – <span class=R>${R}</span> <small style="font:12px system-ui;color:var(--m)">electoral votes (winner-take-all)</small></div><div class=bar><div style="width:${D/5.38}%;background:var(--d)"></div><div style="width:${R/5.38}%;background:var(--r)"></div></div>`;
-  $('mc').dataset.d=D}else ev=`<small style="color:var(--m)">${EV[SEL]||''} electoral votes → <b class="${dw?'D':'R'}">${dw?dn:rn}</b></small><br>`;
- $('rr').innerHTML=`<div class=sub>${name} · President · simulated</div><h2 style="font:600 26px Georgia,serif;color:var(--t);letter-spacing:0;text-transform:none;margin:4px 0">Race results</h2>${row(dn,g.d,'D',dw)}${row(rn,g.r,'R',!dw)}${ot>1?`<div class=cand><span>Other</span><b style="font-size:16px">${(ot/tot*100).toFixed(2)}%</b><small>${n0(ot)} votes</small></div>`:''}<span class=tag>${dw?'Democratic':'Republican'} ${hold?'hold':'gain'} vs 2024</span><p style="color:var(--m);margin:8px 0">${n0(tot)} votes · ${fmt(mg)} points · 2024: ${fmt(g.b)}</p>${ev}`;
- $('close').innerHTML=Object.entries(ST).filter(([s])=>s!=='US').sort((a,b)=>Math.abs(a[1].m)-Math.abs(b[1].m)).slice(0,10).map(([s,o])=>`<tr><td>${s}</td><td class="${o.m>0?'D':'R'}">${fmt(o.m)}</td><td>${EV[s]||''} EV</td></tr>`).join('');
+  ev=`<div style="font:600 28px Georgia,serif"><span class=D>${D}</span> – <span class=R>${R}</span> <small style="font:12px system-ui;color:var(--m)">electoral votes (winner-take-all; ME/NE splits not modeled)</small></div><div class=bar><div style="width:${D/5.38}%;background:var(--d)"></div><div style="width:${R/5.38}%;background:var(--r)"></div></div>`}
+ else if(SC)ev=`<small style="color:var(--m)">Individual-state simulation · starting from ${BASEY} presidential results</small><br>`;
+ else ev=`<small style="color:var(--m)">${EV[SEL]||''} electoral votes → <b class="${dw?'D':'R'}">${dw?dn:rn}</b></small><br>`;
+ $('rr').innerHTML=`<div class=sub>${name} · ${race} · simulated</div><h2 style="font:600 26px Georgia,serif;color:var(--t);letter-spacing:0;text-transform:none;margin:4px 0">Race results</h2>${row(dn,g.d,'D',dw)}${row(rn,g.r,'R',!dw)}${ot>1?`<div class=cand><span>Other</span><b style="font-size:16px">${(ot/tot*100).toFixed(2)}%</b><small>${n0(ot)} votes</small></div>`:''}<span class=tag>${dw?'Democratic':'Republican'} ${hold?'hold':'gain'} vs ${BASEY}</span><p style="color:var(--m);margin:8px 0">${n0(tot)} votes · ${fmt(mg)} points · ${BASEY}: ${fmt(g.b)}</p>${ev}`;
+ if(SC){$('ctitle').textContent=COUNTYOK?'Largest counties in '+SEL:'State summary';
+  $('close').innerHTML=[...C.values()].filter(c=>c.st===SEL).sort((a,b)=>b.vs-a.vs).slice(0,10).map(c=>`<tr><td>${c.name}</td><td class="${c.m>0?'D':'R'}">${fmt(c.m)}</td><td>${n0(c.vs)}</td></tr>`).join('')}
+ else{$('ctitle').textContent='Closest states';
+  $('close').innerHTML=Object.entries(ST).filter(([s])=>s!=='US').sort((a,b)=>Math.abs(a[1].m)-Math.abs(b[1].m)).slice(0,10).map(([s,o])=>`<tr><td>${s}</td><td class="${o.m>0?'D':'R'}">${fmt(o.m)}</td><td>${EV[s]||''} EV</td></tr>`).join('')}
  for(const[id,x]of[['gdD',S.d],['gdR',S.r]]){const m=d3.mean(x);$(id).textContent=gr(m)+' · '+m.toFixed(1)}
- $('sum').textContent='Shares are normalized (entered total '+d3.sum(S.sh).toFixed(1)+'%).';
- const us=ST.US,rel=g.s.map((x,i)=>(x/g.v)/(us.s[i]/us.v)),sh0=S.sh.map((x,i)=>x*rel[i]),sd=d3.sum(sh0),shr=sh0.map(x=>x/sd);
+ const ov=SEL&&S.ov[SEL];let shr,mgs=ov?ov.mg:S.mg;
+ if(ov){const sd=d3.sum(ov.sh)||1;shr=ov.sh.map(x=>x/sd)}
+ else{const us=ST.US,rel=g.s.map((x,i)=>(x/g.v)/(us.s[i]/us.v)),sh0=S.sh.map((x,i)=>x*rel[i]),sd=d3.sum(sh0);shr=sh0.map(x=>x/sd)}
+ $('sum').textContent='Shares are normalized (entered total '+(ov?d3.sum(ov.sh):SC&&SEL?d3.sum(SBASE[SEL]||BASE.sh):d3.sum(S.sh)).toFixed(1)+'%).';
  $('dgeo').textContent=name;
  $('dcards').innerHTML=G.slice(0,4).map((n,i)=>{const v=tot*shr[i],t=SEL?null:v/NCV[i];return `<div class=gc><small>${n} voters</small><div class=n>${t==null?(shr[i]*100).toFixed(1)+'%':(t*100).toFixed(1)+'%'}</div><div class=k><i style="width:${Math.min(100,(t==null?shr[i]*100:t*100))}%"></i></div><small>${n0(v)} voters</small>${t==null?'<small>share of electorate</small>':`<small>${n0(NCV[i])} citizen adults</small>`}</div>`}).join('');
- $('dtab').innerHTML='<tr><th>Group</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>2020</th><th>Shift</th></tr>'+G.map((n,i)=>{const m=S.mg[i],s=m-B20[i];return `<tr><td>${n}</td><td>${(shr[i]*100).toFixed(1)}%</td><td>${n0(tot*shr[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${fmt(B20[i])}</td><td class="${s>0?'D':'R'}">${s>0?'← D ':'R → '}${Math.abs(s).toFixed(1)}</td></tr>`}).join('');
- $('dnote').textContent=(SEL?'Electorate shares scale the national mix by this state’s population composition. ':'Turnout = voters ÷ citizen voting-age population (ACS, per group). ')+'Group margins are national; 2020 group margins are approximate.';
+ const cd=DEMO[CMPY]?DEMO[CMPY][1]:null;
+ $('dtab').innerHTML=`<tr><th>Group</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${CMPY}</th><th>Shift</th></tr>`+G.map((n,i)=>{const m=mgs[i],s=cd?m-cd[i]:0;return `<tr><td>${n}</td><td>${(shr[i]*100).toFixed(1)}%</td><td>${n0(tot*shr[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${cd?fmt(cd[i]):'–'}</td><td class="${s>0?'D':'R'}">${s>0?'← D ':'R → '}${Math.abs(s).toFixed(1)}</td></tr>`}).join('');
+ $('dnote').textContent=(SEL?'Electorate shares come from this state’s population composition (or your overrides). ':'Turnout = voters ÷ citizen voting-age population (ACS, per group). ')+'Group margins are national, approximate, and editable.';
 }
 function upd(){if(!C.size)return;calc();paint();panels();
- const o=ST[SEL];$('sinfo').innerHTML=o?`<b>${SEL}</b> · ${EV[SEL]||''} EV · ${fmt(o.m)} (2024 actual ${fmt(o.b)})`:'Pick a state or click a county to zoom in.'}
+ const o=ST[SEL];$('sinfo').innerHTML=o?`<b>${SEL}</b> · ${SCOPE==='state'?'':(EV[SEL]||'')+' EV · '}${fmt(o.m)} (${BASEY} actual ${fmt(o.b)})`:'Pick a state or click a county to zoom in.'}
 function selState(){
- $('sadj').innerHTML='';if(SEL)$('sadj').append(sl('State adjustment (− R / + D pts)',-20,20,.5,S.st[SEL]||0,v=>S.st[SEL]=v));
+ $('sadj').innerHTML='';if(SEL&&SCOPE==='national')$('sadj').append(sl('State adjustment (− R / + D pts)',-20,20,.5,S.st[SEL]||0,v=>S.st[SEL]=v));
+ if(SCOPE==='state')build();
  if(!SEL)svg.transition().duration(500).call(zm.transform,d3.zoomIdentity);
  else{const f=sf.find(x=>x.properties.name===SEL),[[x0,y0],[x1,y1]]=pth.bounds(f),k=Math.min(10,.9/Math.max((x1-x0)/975,(y1-y0)/610));
   svg.transition().duration(600).call(zm.transform,d3.zoomIdentity.translate(487.5-k*(x0+x1)/2,305-k*(y0+y1)/2).scale(k))}
  upd();
 }
+function setScope(k){
+ SCOPE=k;document.querySelectorAll('#scope button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+ const sc=k==='state';$('natcard').style.display=sc?'none':'';$('stcard').style.display=sc?'':'none';$('sel').options[0].disabled=sc;
+ if(sc){if(!SEL&&SN&&Object.values(SN).includes('Texas'))SEL='Texas';$('sel').value=SEL;if(COUNTYOK){LEVEL='counties';$('lv').value='counties'}}
+ if(paths)selState();else build();
+}
+function calcSBASE(){const t={};for(const c of ALL.values()){if(!c.s||!c.st)continue;const w=(c.R[2024]||c.R[2020]||{}).t||0;if(!w)continue;const o=t[c.st]??={w:0,s:[0,0,0,0,0]};c.s.forEach((x,i)=>o.s[i]+=w*x)}
+ for(const st in t){const o=t[st],sd=d3.sum(o.s);if(sd)SBASE[st]=o.s.map(x=>x/sd*100)}}
+function stateRow(n,y){const ix=IX[n];if(!ix)return null;let d,g,t;
+ if(y===2024){[d,g,t]=S24[n]}else{t=NT[y]*S24[n][2]/tot24;const m=MT[n][y]/100,o=OT[y];d=t*(1-o+m)/2;g=t*(1-o-m)/2}
+ return{f:ix+'000',name:n,st:n,v:t,pd:d/t,pr:g/t,m0:(d-g)/t*100,mh:MT[n],s:SBASE[n]&&SBASE[n].map(x=>x/100)}}
+function setBase(y){
+ BASEY=y;BASE.sh=[...DEMO[y][0]];BASE.mg=[...DEMO[y][1]];
+ const ev=EVT[y>=2024?2020:y>=2012?2010:y>=2004?2000:1990];EV=Object.fromEntries(NM.map((n,i)=>[n,ev[i]]));
+ C=new Map();
+ if(ALL.size&&CY.includes(y))for(const c of ALL.values()){const r=c.R[y];if(r&&r.t>0){c.v=r.t;c.pd=r.d/r.t;c.pr=r.g/r.t;c.m0=(r.d-r.g)/r.t*100;C.set(c.f,c)}}
+ COUNTYOK=C.size>=1500;
+ if(!COUNTYOK){C=new Map();for(const n of NM){const r=stateRow(n,y);if(r)C.set(r.f,r)}}
+ const tmp={};for(const c of C.values()){const o=tmp[c.st]??={v:0,x:0};o.v+=c.v;o.x+=c.v*c.m0}
+ SMEAN={};for(const s in tmp)SMEAN[s]=tmp[s].x/tmp[s].v;
+ NAT=d3.sum(Object.values(tmp),o=>o.x)/d3.sum(Object.values(tmp),o=>o.v);
+}
+function chooseBase(y){
+ setBase(y);S.sh=[...BASE.sh];S.mg=[...BASE.mg];S.ov={};CMPY=y;$('cmp').value=y;
+ LEVEL=COUNTYOK?'counties':'states';$('lv').value=LEVEL;$('lv').querySelector('[value=counties]').disabled=!COUNTYOK;
+ $('base').value=y;
+ $('binfo').textContent=COUNTYOK?`County-level results for ${y}.`:y===2024?'State-level certified 2024 totals.':(y<2008?`County results for ${y} aren’t in the data source, so this runs at state level.`:`County files for ${y} didn’t load, so this uses built-in state results.`)+' State margins are typed-in approximations (about ±0.5 pt) and vote totals are estimated.';
+ if(paths)selState();else build();
+}
 const get=async(urls,parse)=>{for(const u of urls){try{return await parse(u)}catch(e){console.warn(u,e)}}return null};
-function ingest(a){for(const r of a){if(!r.t)continue;C.set(r.f,{name:r.n,st:r.s,v:r.t,pd:r.d/r.t,pr:r.g/r.t,m0:(r.d-r.g)/r.t*100,m20:r.m2!=null?r.m2:r.t2?(r.d2-r.g2)/r.t2*100:null,s:r.sh,cvap:r.cv})}}
+function ingest(a){for(const r of a){const y=r.y?{...r.y}:{};
+ if(r.t)y[2024]=[r.d,r.g,r.t];if(r.t2)y[2020]=[r.d2,r.g2,r.t2];
+ const R={},mh={};for(const k in y){const[d,g,t]=y[k];if(t>0){R[k]={d,g,t};mh[k]=(d-g)/t*100}}
+ if(r.m2!=null&&mh[2020]==null)mh[2020]=r.m2;
+ if(!Object.keys(R).length)continue;
+ ALL.set(r.f,{f:r.f,name:r.n,st:r.s||SN[r.f.slice(0,2)],R,mh,s:r.sh,cvap:r.cv})}
+ calcSBASE()}
 async function live(){
  const U=['https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-24/master/','https://cdn.jsdelivr.net/gh/tonmcg/US_County_Level_Election_Results_08-24@master/'];
  const csv=y=>get(U.map(u=>u+y+'_US_County_Level_Presidential_Results.csv'),d3.csv),A='https://api.census.gov/data/2022/acs/acs5?for=county:*&get=';
- const [c24,c20,dm,cv]=await Promise.all([csv(2024),csv(2020),get([A+'B03002_001E,B03002_003E,B03002_004E,B03002_012E,B03002_006E'],d3.json),get([A+'B29001_001E'],d3.json)]);
- if(!c24)return null;
- const p5=s=>String(s).padStart(5,'0'),fp=r=>p5(r.county_fips||r.fips),M={};
- for(const r of c24)M[fp(r)]={f:fp(r),n:r.county_name,s:r.state_name,d:+r.votes_dem,g:+r.votes_gop,t:+(r.total_votes||+r.votes_dem+ +r.votes_gop)};
- if(c20)for(const r of c20){const o=M[fp(r)];if(o){o.d2=+r.votes_dem;o.g2=+r.votes_gop;o.t2=+(r.total_votes||o.d2+o.g2)}}
+ const [dm,cv,...cs]=await Promise.all([get([A+'B03002_001E,B03002_003E,B03002_004E,B03002_012E,B03002_006E'],d3.json),get([A+'B29001_001E'],d3.json),...CY.map(csv)]);
+ const p5=s=>String(s).trim().padStart(5,'0'),nm=x=>+String(x).replace(/[,\s]/g,''),M={};
+ CY.forEach((y,j)=>{const rs=cs[j];if(!rs||!rs.length)return;const K=rs.columns||Object.keys(rs[0]);
+  const fk=K.find(k=>/fips/i.test(k)),
+   dk=K.find(k=>/^(votes_?dem|dem_?votes|dem)$/i.test(k))||K.find(k=>/dem/i.test(k)&&!/per|pct/i.test(k)),
+   gk=K.find(k=>/^(votes_?gop|gop_?votes|gop|votes_?rep|rep)$/i.test(k))||K.find(k=>/gop|rep/i.test(k)&&!/per|pct/i.test(k)),
+   tk=K.find(k=>/^(total_?votes|total)$/i.test(k)),nk=K.find(k=>/county_?name|^county$/i.test(k));
+  if(!fk||!dk||!gk)return;
+  for(const r of rs){const raw=String(r[fk]).trim();if(!/^\d{1,5}$/.test(raw))continue;const f=p5(raw),d=nm(r[dk]),g=nm(r[gk]),t=(tk&&nm(r[tk]))||d+g;if(!(t>0))continue;
+   const o=M[f]??={f,n:nk?r[nk]:f,s:SN[f.slice(0,2)],y:{}};o.y[y]=[d,g,t];if(y===2024&&nk)o.n=r[nk]}});
  if(dm)for(const r of dm.slice(1)){const o=M[r[5]+r[6]],t=+r[0];if(o&&t){const s=[1,2,3,4].map(i=>+r[i]/t);o.sh=[...s,Math.max(0,1-d3.sum(s))]}}
  if(cv)for(const r of cv.slice(1)){const o=M[r[1]+r[2]];if(o)o.cv=+r[0]}
- return Object.values(M)}
+ const out=Object.values(M);return out.length?out:null}
 async function main(){
  const tp=await get(['data/counties-albers-10m.json','https://cdn.jsdelivr.net/npm/us-atlas@3/counties-albers-10m.json','https://unpkg.com/us-atlas@3/counties-albers-10m.json'],d3.json);
  if(!tp){$('msg').textContent='Could not load county geometry. Open this page from GitHub Pages or a local server (not file://), and make sure scripts/data are not blocked.';return}
- geo=topojson.feature(tp,tp.objects.counties).features;sf=topojson.feature(tp,tp.objects.states).features;sf.forEach(f=>SN[f.id]=f.properties.name);
+ geo=topojson.feature(tp,tp.objects.counties).features;sf=topojson.feature(tp,tp.objects.states).features;sf.forEach(f=>{SN[f.id]=f.properties.name;IX[f.properties.name]=f.id});
  $('sel').innerHTML+=sf.map(f=>f.properties.name).sort().map(n=>`<option>${n}</option>`).join('');
  pth=d3.geoPath();geo.forEach(d=>d._c=pth.centroid(d));
  const z=d3.select('#z');svg=d3.select('#map');
  paths=z.selectAll('.c').data(geo).join('path').attr('class','c').attr('d',pth).attr('fill',NA).attr('stroke','#fff').attr('stroke-width',.15);
  const tipFn=(e,d)=>{const c=UV(d),t=$('tip');t.style.display='block';t.style.left=Math.min(e.clientX+12,innerWidth-240)+'px';t.style.top=e.clientY+12+'px';
-  t.innerHTML=c?`<b>${LEVEL==='counties'?c.name+', '+c.st:c.name}</b><br><span class=D>${n0(c.vs*c.pdS)} (${(c.pdS*100).toFixed(1)}%)</span> D<br><span class=R>${n0(c.vs*c.prS)} (${(c.prS*100).toFixed(1)}%)</span> R<br>Margin ${fmt(c.m)} · 2024 ${fmt(c.m0)}${c.m20!=null?' · 2020 '+fmt(c.m20):''}<br>${n0(c.vs)} votes${c.cvap?' · turnout '+(c.vs/c.cvap*100).toFixed(1)+'%':''}`:`${SN[d.id.slice(0,2)]||''} (no county data)`};
+  const b=c&&c.mh?c.mh[CMPY]:null;
+  t.innerHTML=c?`<b>${LEVEL==='counties'?c.name+', '+c.st:c.name}</b><br><span class=D>${n0(c.vs*c.pdS)} (${(c.pdS*100).toFixed(1)}%)</span> D<br><span class=R>${n0(c.vs*c.prS)} (${(c.prS*100).toFixed(1)}%)</span> R<br>Margin ${fmt(c.m)} · ${BASEY} ${fmt(c.m0)}${b!=null&&CMPY!==BASEY?' · '+CMPY+' '+fmt(b):''}<br>${n0(c.vs)} votes${c.cvap?' · turnout '+(c.vs/c.cvap*100).toFixed(1)+'%':''}`:`${SN[d.id.slice(0,2)]||''} (no county data)`};
  const pick=(e,d)=>{SEL=SN[d.id.slice(0,2)]||'';$('sel').value=SEL;selState()},hide=()=>$('tip').style.display='none';
  sf.forEach(d=>d._c=pth.centroid(d));
  sp=d3.select('#zs').selectAll('path').data(sf).join('path').attr('d',pth).attr('fill',NA).attr('stroke','#fff').attr('stroke-width',.5).style('cursor','pointer').on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
  paths.on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
- d3.select('#zz').append('path').datum(topojson.mesh(tp,tp.objects.states,(a,b)=>a!==b)).attr('fill','none').attr('stroke','#222').attr('stroke-width',.6).attr('pointer-events','none');
+ d3.select('#zz').append('path').attr('id','mesh').datum(topojson.mesh(tp,tp.objects.states,(a,b)=>a!==b)).attr('d',pth).attr('fill','none').attr('stroke','#222').attr('stroke-width',.6).attr('pointer-events','none');
+ d3.select('#zz').append('path').attr('id','outl').attr('fill','none').attr('stroke','#222').attr('stroke-width',.8).attr('pointer-events','none');
  zm=d3.zoom().scaleExtent([1,14]).on('zoom',e=>d3.select('#zz').attr('transform',e.transform));svg.call(zm);
  $('sel').onchange=()=>{SEL=$('sel').value;selState()};
  $('msg').textContent='Geometry loaded. Loading results…';
  let rows=await get(['data/counties.json'],d3.json);if(!rows||!rows.length)rows=await live();
- if(!rows){const ix=Object.fromEntries(Object.entries(SN).map(([k,v])=>[v,k]));
-  rows=ST24.split('\n').map(l=>{const p=l.split(',');return{f:ix[p[0]]+'000',n:p[0],s:p[0],d:+p[1],g:+p[2],t:+p[3],m2:+p[4]}});STATEONLY=true;LEVEL='states';$('lv').value='states';$('lv').querySelector('[value=counties]').disabled=true}
- ingest(rows);if(!C.size){$('msg').textContent='Vote data loaded but no counties parsed.';return}
- NAT=d3.sum([...C.values()],c=>c.v*c.m0)/d3.sum([...C.values()],c=>c.v);
- if(STATEONLY)$('msg').textContent='County data could not be downloaded here (blocked in this preview). Showing real state-level results; counties unlock on GitHub Pages or after running build_data.py and committing data/.';else{LEVEL='counties';$('lv').value='counties';$('msg').remove()}
- upd();
+ if(rows&&rows.length)ingest(rows);
+ if(!ALL.size)$('msg').textContent='County data could not be downloaded here (blocked in this preview). Showing real 2024 state results and built-in historical state results; counties unlock on GitHub Pages or after running build_data.py and committing data/.';
+ else $('msg').style.display='none';
+ chooseBase(2024);
 }
 $('modes').innerHTML=Object.entries(MODES).map(([k,v])=>`<button data-k=${k} class="${k===MODE?'on':''}">${v}</button>`).join('');
 $('modes').onclick=e=>{const k=e.target.dataset.k;if(!k)return;MODE=k;document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));if(C.size)paint()};
-$('arr').onchange=$('cmp').onchange=()=>C.size&&paint();
+$('base').innerHTML=[...YEARS].reverse().map(y=>`<option value="${y}">${y}${y<2008?' (state-level)':''}</option>`).join('');
+$('cmp').innerHTML=[...YEARS].reverse().map(y=>`<option value="${y}">${y} election</option>`).join('');
+$('base').onchange=()=>chooseBase(+$('base').value);
+$('scope').onclick=e=>{const k=e.target.dataset.k;if(k)setScope(k)};
+$('cmp').onchange=()=>{CMPY=+$('cmp').value;if(C.size){paint();panels()}};
+$('arr').onchange=()=>C.size&&paint();
 $('lv').onchange=()=>{LEVEL=$('lv').value;if(C.size)paint()};
 $('dn').oninput=$('rn').oninput=upd;
 $('reset').onclick=()=>{S=init();build();if(paths)selState()};
-$('mc').onclick=()=>{const st=Object.entries(ST).filter(([s])=>s!=='US').map(([s,o])=>[o.m,EV[s]||0]);let w=0,tot=0;const N=2000,nr=d3.randomNormal(0,3),sr=d3.randomNormal(0,3.5);
+$('mc').onclick=()=>{const dn=$('dn').value,rn=$('rn').value,N=2000;
+ if(SCOPE==='state'&&ST[SEL]){const m=ST[SEL].m,sr=d3.randomNormal(0,3.5);let w=0;for(let i=0;i<N;i++)if(m+sr()>0)w++;
+  $('mcr').innerHTML=`<b class=D>${dn}</b> wins ${(w/N*100).toFixed(1)}% · <b class=R>${rn}</b> ${(100-w/N*100).toFixed(1)}%<br><small>σ state 3.5 pts</small>`;return}
+ const st=Object.entries(ST).filter(([s])=>s!=='US').map(([s,o])=>[o.m,EV[s]||0]);let w=0,tot=0;const nr=d3.randomNormal(0,3),sr=d3.randomNormal(0,3.5);
  for(let i=0;i<N;i++){const n=nr(),e=st.reduce((a,[m,v])=>a+(m+n+sr()>0?v:0),0);tot+=e;if(e>=270)w++}
- $('mcr').innerHTML=`<b class=D>${$('dn').value}</b> wins ${(w/N*100).toFixed(1)}% · <b class=R>${$('rn').value}</b> ${(100-w/N*100).toFixed(1)}%<br>Average D electoral votes: ${(tot/N).toFixed(0)}<br><small>σ national 3 pts, state 3.5 pts</small>`};
-build();main().catch(e=>{console.error(e);$('msg').textContent='Error: '+e.message});
+ $('mcr').innerHTML=`<b class=D>${dn}</b> wins ${(w/N*100).toFixed(1)}% · <b class=R>${rn}</b> ${(100-w/N*100).toFixed(1)}%<br>Average D electoral votes: ${(tot/N).toFixed(0)}<br><small>σ national 3 pts, state 3.5 pts</small>`};
+build();main().catch(e=>{console.error(e);$('msg').style.display='';$('msg').textContent='Error: '+e.message});
 </script></body></html>
