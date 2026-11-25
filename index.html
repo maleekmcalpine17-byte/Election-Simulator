@@ -17,7 +17,13 @@ table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:4px;text-
 button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tabs button.on{background:#e6dcff;color:#111}
 .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:12px;color:var(--m)}.row select{width:auto}.row label{margin:0}
-#map{background:#f3f1ec;border-radius:10px;width:100%;height:auto;display:block}
+#map{background:#0a121f;border:1px solid #26324a;border-radius:10px;width:100%;height:auto;display:block}
+.mbar{display:flex;gap:6px;margin:0 0 8px}.mbar button{background:#111a2a;border:1px solid #26324a;min-width:38px}
+#binleg{display:none;border:1px solid #1c2640;background:#0c1422;border-radius:8px;padding:10px 14px;margin-top:8px;gap:26px;flex-wrap:wrap;font-size:11px;color:var(--m)}
+#binleg .grp b{display:block;color:var(--t);font-size:12px;margin-bottom:6px}
+#binleg .sw{display:flex;gap:6px}#binleg .sw span{display:block;text-align:center;width:30px;font-size:10px;line-height:1.15}
+#binleg .sw i{display:block;width:12px;height:12px;margin:0 auto 4px;border-radius:2px}
+#binleg .dot{display:inline-block;border-radius:50%;vertical-align:middle;margin-right:6px}
 #leg{height:10px;width:200px;border-radius:5px}
 #tip{position:fixed;pointer-events:none;background:#000e;padding:6px 8px;border-radius:6px;font-size:12px;display:none;z-index:9;line-height:1.5}
 .D{color:var(--d)}.R{color:var(--r)}.sub{font-size:11px;letter-spacing:.1em;color:var(--g);text-transform:uppercase}
@@ -50,8 +56,9 @@ button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px
  <div class="card" style="padding:8px">
   <div class="tabs" id="modes"></div>
   <div class="row"><span>View</span><select id="lv"><option value="states">States</option><option value="counties">Counties</option></select><span>Compare with</span><select id="cmp"></select>
-   <label><input type="checkbox" id="arr"> Shift arrows (blue ← D, red → R)</label><div id="leg"></div><span id="legt"></span></div>
-  <svg id="map" viewBox="0 0 975 610"><g id="zz"><g id="z"></g><g id="zs"></g></g></svg><div id="msg">Loading…</div>
+   <label><input type="checkbox" id="arr"> Shift arrows (blue ← D shift, red → R shift)</label><div id="leg"></div><span id="legt"></span></div>
+  <div class="mbar"><button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button><button id="zreset">Reset map</button></div>
+  <svg id="map" viewBox="0 0 975 610"><g id="zz"><g id="z"></g><g id="zs"></g></g></svg><div id="msg">Loading…</div><div id="binleg"></div>
  </div>
  <div class="card"><h2>Who turned out · <span id="dgeo"></span></h2><div class="cards" id="dcards"></div><table id="dtab"></table><small id="dnote" style="color:var(--m)"></small></div>
 </div>
@@ -187,7 +194,10 @@ const init=()=>({env:0,lean:1,imp:.3,to:0,st:{},sto:{},ov:{},race:'',sh:[...BASE
 let LEVEL='counties',COUNTYOK=false,sp,S=init(),C=new Map(),ALL=new Map(),ST={},NAT=0,paths,geo,sf,SN={},IX={},SEL='',MODE='margin',svg,zm,pth,SCOPE='national',BASEY=2024,CMPY=2024,EV={},SMEAN={},SBASE={};
 const dv=(a)=>d3.scaleDiverging(d3.interpolateRdBu).domain([-a,0,a]);
 const col=dv(40),sw=dv(15),vss=dv(20),ld=dv(5.5),tu=d3.scaleSequential(d3.interpolatePurples).domain([.35,.85]);
-const fmt=m=>(m>=0?'D+':'R+')+Math.abs(m).toFixed(1),n0=x=>Math.round(x).toLocaleString(),gr=x=>x>=90?'A':x>=80?'B':x>=70?'C':x>=60?'D':'F',NA='#cfcbc2';
+const fmt=m=>(m>=0?'D+':'R+')+Math.abs(m).toFixed(1),n0=x=>Math.round(x).toLocaleString(),gr=x=>x>=90?'A':x>=80?'B':x>=70?'C':x>=60?'D':'F',NA='#253447';
+const DB=['#e9e9fb','#cacaf7','#a9a9f6','#8686f5','#6464f2','#3a3aec','#1c1cc8','#0a0a8a'],RB=['#ffe6e6','#fdc7c7','#fa9f9f','#f77878','#f35252','#e22d2d','#bf1212','#730000'],BL=['0–1','1–3','3–6','6–10','10–20','20–35','35–50','50+'];
+const bi=a=>{a=Math.abs(a);return a<1?0:a<3?1:a<6?2:a<10?3:a<20?4:a<35?5:a<50?6:7},binCol=m=>(m>=0?DB:RB)[bi(m)];
+let ZK=1,RS=()=>0,BV=new Map(),AS=new Map(),AMAX=24;
 function sl(l,min,max,step,v,cb){const d=document.createElement('label');d.innerHTML=`${l}<b>${v}</b><input type=range min=${min} max=${max} step=${step} value=${v}>`;const i=d.lastChild,b=d.firstElementChild;i.oninput=()=>{b.textContent=i.value;cb(+i.value);upd()};return d}
 const ovOf=st=>S.ov[st]??=(()=>{const b=SBASE[st]?[...SBASE[st]]:[...BASE.sh];return{base:b,sh:[...b],mg:[...S.mg]}})();
 function build(){
@@ -231,26 +241,55 @@ const flip=(c,b)=>b!=null&&(c.m>0)!==(b>0);
 const UV=d=>{if(LEVEL==='counties')return C.get(d.id);const n=SN[d.id],o=ST[n];return o&&{m:o.m,m0:o.b,mh:{...MT[n],...o.mh},vs:o.v,cvap:o.cv,pdS:o.d/o.v,prS:o.r/o.v,name:n,st:n}};
 function paint(){
  const Bm=c=>c.mh?c.mh[CMPY]:null,st=LEVEL==='states',P=st?sp:paths,SC=SCOPE==='state',inSel=id=>!SC||SN[id.slice(0,2)]===SEL;
- d3.select('#z').style('display',st?'none':null);d3.select('#zs').style('display',st?null:'none');d3.select('#mesh').style('display',SC?'none':null);
+ d3.select('#z').style('display',st?'none':null);d3.select('#zs').style('display',st?null:'none');d3.select('#mesh').style('display',SC?'none':null).attr('stroke',MODE==='lead'?'#5b6f8f':'#0a121f');
  const sfo=SEL&&sf.find(f=>f.properties.name===SEL);d3.select('#outl').attr('d',SC&&sfo?pth(sfo):'');
  P.style('display',d=>inSel(d.id)?null:'none')
   .attr('fill',d=>{const c=UV(d);
-  if(!c){const g=ST[SN[d.id.slice(0,2)]];return g&&MODE==='margin'?col(g.m):NA}
+  if(!c){const g=ST[SN[d.id.slice(0,2)]];return g&&MODE==='margin'?binCol(g.m):NA}
   const b=Bm(c);
-  switch(MODE){case'margin':return col(c.m);case'turnout':return c.cvap?tu(c.vs/c.cvap):NA;
-   case'swing':return b==null?NA:sw(c.m-b);case'lead':return ld(Math.sign(c.m)*Math.log10(1+Math.abs(c.m)/100*c.vs));
+  switch(MODE){case'margin':return binCol(c.m);case'turnout':return c.cvap?tu(c.vs/c.cvap):NA;
+   case'swing':return b==null?NA:sw(c.m-b);case'lead':return NA;
    case'vsstate':return st||!ST[c.st]?NA:vss(c.m-ST[c.st].m);
    case'flips':return b==null?NA:c.m>0?(b>0?'#a9cdea':'#1b5fa6'):(b>0?'#a61e34':'#f2a8b3')}})
-  .attr('stroke',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?'#d9a400':'#fff'})
-  .attr('stroke-width',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?.9:st?.5:.15})
+  .attr('stroke',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?'#d9a400':MODE==='lead'?'#3d4f6b':'#0a121f'})
+  .attr('stroke-width',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?.9:st?.6:.3})
   .attr('opacity',d=>!SEL||SN[d.id.slice(0,2)]===SEL?1:.3);
- const L={margin:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R+40 → D+40'],turnout:['linear-gradient(90deg,#f2f0f7,#54278f)','35% → 85% of eligible voters'],swing:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R shift ← → D shift (±15)'],lead:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Bigger vote lead = darker'],vsstate:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Redder/bluer than own state'],flips:['linear-gradient(90deg,#f2a8b3,#a61e34,#1b5fa6,#a9cdea)','Gold outline = flipped vs '+CMPY+' (strong colors)']}[MODE];
- $('leg').style.background=L[0];$('legt').textContent=L[1];
+ const L={turnout:['linear-gradient(90deg,#f2f0f7,#54278f)','35% → 85% of eligible voters'],swing:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R shift ← → D shift (±15)'],vsstate:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Redder/bluer than own state'],flips:['linear-gradient(90deg,#f2a8b3,#a61e34,#1b5fa6,#a9cdea)','Gold outline = flipped vs '+CMPY+' (strong colors)']}[MODE];
+ const binMode=MODE==='margin'||MODE==='lead';
+ $('leg').style.display=$('legt').style.display=binMode?'none':'';
+ if(L){$('leg').style.background=L[0];$('legt').textContent=L[1]}
+ const BLG=$('binleg');BLG.style.display=binMode?'flex':'none';
+ // ---- bubbles (Size of lead)
+ const bub=MODE==='lead'?(st?sf:geo).filter(d=>{const c=UV(d);return c&&inSel(d.id)}):[];
+ BV=new Map(bub.map(d=>{const c=UV(d);return[d.id,c.m/100*c.vs]}));
+ bub.sort((a,b)=>Math.abs(BV.get(b.id))-Math.abs(BV.get(a.id)));
+ const mx=d3.max(bub,d=>Math.abs(BV.get(d.id)))||1,rmax=st?(SC||SEL?40:30):(SEL||SC?26:12);
+ RS=d3.scaleSqrt().domain([0,mx]).range([0,rmax]);
+ d3.select('#zb').selectAll('circle').data(bub,d=>d.id).join('circle').order()
+  .attr('cx',d=>d._c[0]).attr('cy',d=>d._c[1]).attr('pointer-events','none')
+  .attr('fill',d=>BV.get(d.id)>=0?'#5aa0e6':'#ec6b7e').attr('fill-opacity',.88).attr('stroke','#0a121f').attr('stroke-opacity',.5);
+ // ---- shift arrows
  const a=$('arr').checked?(st?sf:geo).filter(d=>{const c=UV(d);return c&&Bm(c)!=null&&inSel(d.id)}):[];
- const g=d3.select('#zz').selectAll('.ar').data(a,d=>d.id);g.exit().remove();
- g.enter().append('path').attr('class','ar').attr('fill','none').attr('stroke-width',.7).attr('pointer-events','none').merge(g)
-  .attr('stroke',d=>{const c=UV(d);return c.m-Bm(c)>0?'#0b3d91':'#9b1c31'})
-  .attr('d',d=>{const c=UV(d),L=Math.max(-18,Math.min(18,-(c.m-Bm(c))*.6)),[x,y]=d._c,h=L>0?-2.5:2.5;return `M${x},${y}h${L}m0,0l${h},-1.8m${-h},1.8l${h},1.8`});
+ AS=new Map(a.map(d=>{const c=UV(d);return[d.id,c.m-Bm(c)]}));AMAX=st?(SC||SEL?34:28):(SEL||SC?28:14);
+ d3.select('#za').selectAll('g.ar').data(a,d=>d.id).join(en=>{const g=en.append('g').attr('class','ar').attr('pointer-events','none');
+  g.append('path').attr('class','h').attr('fill','none').attr('stroke','#050a14').attr('stroke-opacity',.8).attr('stroke-linecap','round').attr('stroke-linejoin','round');
+  g.append('path').attr('class','l').attr('fill','none').attr('stroke-linecap','round').attr('stroke-linejoin','round');return g});
+ // ---- legend content
+ if(MODE==='margin'){const sws=(C_)=>C_.map((c,i)=>`<span><i style="background:${c}"></i>${BL[i]}</span>`).join('');
+  BLG.innerHTML=`<div class=grp><b>Democratic lead</b><div class=sw>${sws(DB)}</div></div><div class=grp><b>Republican lead</b><div class=sw>${sws(RB)}</div></div><div class=grp style="align-self:flex-end">Percentage-point margin</div>`}
+ else if(MODE==='lead'){const big=Math.round(mx),sz=n=>2*RS(n);
+  BLG.innerHTML=`<div class=grp><b>Net vote lead</b><span class=dot style="width:12px;height:12px;background:#5aa0e6"></span>Democratic &nbsp; <span class=dot style="width:12px;height:12px;background:#ec6b7e"></span>Republican</div><div class=grp style="align-self:flex-end">Bubble area ∝ votes. Largest: <span style="color:var(--t)">${n0(big)}</span> · ${n0(big/4)} · ${n0(big/16)}</div>`}
+ overlay();
+}
+function overlay(){
+ const k=ZK||1;
+ d3.select('#zb').selectAll('circle').attr('r',d=>RS(Math.abs(BV.get(d.id)||0))/k).attr('stroke-width',.6/k);
+ d3.select('#za').selectAll('g.ar').each(function(d){
+  const s=AS.get(d.id),len=Math.min(AMAX,4+Math.abs(s)*1.6)/k,L=s>0?-len:len,[x,y]=d._c,sg=Math.sign(L),hh=Math.min(6,len*k*.5)/k,
+   dd=`M${x},${y}h${L}M${x+L-sg*hh},${y-hh*.75}L${x+L},${y}L${x+L-sg*hh},${y+hh*.75}`;
+  const g=d3.select(this);
+  g.select('.h').attr('d',dd).attr('stroke-width',3.4/k);
+  g.select('.l').attr('d',dd).attr('stroke-width',1.7/k).attr('stroke',s>0?'#8ccbff':'#ff9aa8')})
 }
 function panels(){
  const SC=SCOPE==='state',dn=$('dn').value,rn=$('rn').value,g=ST[SEL||'US'];if(!g)return;
@@ -346,17 +385,20 @@ async function main(){
  $('sel').innerHTML+=sf.map(f=>f.properties.name).sort().map(n=>`<option>${n}</option>`).join('');
  pth=d3.geoPath();geo.forEach(d=>d._c=pth.centroid(d));
  const z=d3.select('#z');svg=d3.select('#map');
- paths=z.selectAll('.c').data(geo).join('path').attr('class','c').attr('d',pth).attr('fill',NA).attr('stroke','#fff').attr('stroke-width',.15);
+ paths=z.selectAll('.c').data(geo).join('path').attr('class','c').attr('d',pth).attr('fill',NA).attr('stroke','#0a121f').attr('stroke-width',.3);
  const tipFn=(e,d)=>{const c=UV(d),t=$('tip');t.style.display='block';t.style.left=Math.min(e.clientX+12,innerWidth-240)+'px';t.style.top=e.clientY+12+'px';
   const b=c&&c.mh?c.mh[CMPY]:null;
   t.innerHTML=c?`<b>${LEVEL==='counties'?c.name+', '+c.st:c.name}</b><br><span class=D>${n0(c.vs*c.pdS)} (${(c.pdS*100).toFixed(1)}%)</span> D<br><span class=R>${n0(c.vs*c.prS)} (${(c.prS*100).toFixed(1)}%)</span> R<br>Margin ${fmt(c.m)} · ${BASEY} ${fmt(c.m0)}${b!=null&&CMPY!==BASEY?' · '+CMPY+' '+fmt(b):''}<br>${n0(c.vs)} votes${c.cvap?' · turnout '+(c.vs/c.cvap*100).toFixed(1)+'%':''}`:`${SN[d.id.slice(0,2)]||''} (no county data)`};
  const pick=(e,d)=>{SEL=SN[d.id.slice(0,2)]||'';$('sel').value=SEL;selState()},hide=()=>$('tip').style.display='none';
  sf.forEach(d=>d._c=pth.centroid(d));
- sp=d3.select('#zs').selectAll('path').data(sf).join('path').attr('d',pth).attr('fill',NA).attr('stroke','#fff').attr('stroke-width',.5).style('cursor','pointer').on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
+ sp=d3.select('#zs').selectAll('path').data(sf).join('path').attr('d',pth).attr('fill',NA).attr('stroke','#0a121f').attr('stroke-width',.6).style('cursor','pointer').on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
  paths.on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
- d3.select('#zz').append('path').attr('id','mesh').datum(topojson.mesh(tp,tp.objects.states,(a,b)=>a!==b)).attr('d',pth).attr('fill','none').attr('stroke','#222').attr('stroke-width',.6).attr('pointer-events','none');
- d3.select('#zz').append('path').attr('id','outl').attr('fill','none').attr('stroke','#222').attr('stroke-width',.8).attr('pointer-events','none');
- zm=d3.zoom().scaleExtent([1,14]).on('zoom',e=>d3.select('#zz').attr('transform',e.transform));svg.call(zm);
+ d3.select('#zz').append('path').attr('id','mesh').datum(topojson.mesh(tp,tp.objects.states,(a,b)=>a!==b)).attr('d',pth).attr('fill','none').attr('stroke','#0a121f').attr('stroke-width',.7).attr('pointer-events','none');
+ d3.select('#zz').append('path').attr('id','outl').attr('fill','none').attr('stroke','#cfd8e8').attr('stroke-width',.8).attr('pointer-events','none');
+ d3.select('#zz').append('g').attr('id','zb');d3.select('#zz').append('g').attr('id','za');
+ zm=d3.zoom().scaleExtent([1,14]).on('zoom',e=>{ZK=e.transform.k;d3.select('#zz').attr('transform',e.transform);overlay()});svg.call(zm);
+ $('zin').onclick=()=>svg.transition().duration(250).call(zm.scaleBy,1.6);$('zout').onclick=()=>svg.transition().duration(250).call(zm.scaleBy,1/1.6);
+ $('zreset').onclick=()=>{if(SCOPE==='national'){SEL='';$('sel').value=''}selState()};
  $('sel').onchange=()=>{SEL=$('sel').value;selState()};
  $('msg').textContent='Geometry loaded. Loading results…';
  let rows=await get(['data/counties.json'],d3.json);if(!rows||!rows.length)rows=await live();
