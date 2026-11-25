@@ -278,7 +278,7 @@ function calc(){
  for(const st in S.sa){const e=effSA(st),t=effST(st);kS[st]={k:e.k,mg:e.mg,kt:t.k,mt:t.mg}}
  for(const c of C.values()){const s=c.s||DEF,ks=kS[c.st],k=ks?ks.k:kN,mg=ks?ks.mg:S.mg;let b=0,a=0,w=0;
   s.forEach((x,i)=>{b+=x*BASE.mg[i];a+=x*k[i]*mg[i];w+=x*k[i]});
-  let tb=0,ta=0,tw=0;if(c.ty){const kt=ks?ks.kt:kT,mt=ks?ks.mt:S.tm;c.ty.forEach((x,i)=>{tb+=x*BASE.tm[i];ta+=x*kt[i]*mt[i];tw+=x*kt[i]})}
+  let tb=0,ta=0,tw=0;{const ty=c.ty||DEFT,kt=ks?ks.kt:kT,mt=ks?ks.mt:S.tm;ty.forEach((x,i)=>{tb+=x*BASE.tm[i];ta+=x*kt[i]*mt[i];tw+=x*kt[i]})}
   const ref=SC?(SMEAN[c.st]??NAT):NAT,to=SC?(S.sto[c.st]||0):(S.sto[c.st]??S.to);
   c.m=ref+(c.m0-ref)*S.lean+(w?a/w:0)-b+(tw?ta/tw:0)-tb+(SC?0:S.env)+edge+(S.st[c.st]||0);
   const dm=(c.m-c.m0)/100;c.pdS=c.pd+dm/2;c.prS=c.pr-dm/2;
@@ -360,7 +360,7 @@ function panels(){
  if(SEL){const e=effST(SEL);tsh=e.sh.map(x=>x/100);tmg=e.mg}
  else{const us=ST.US,rel=g.t.map((x,i)=>(x/g.v)/(us.t[i]/us.v)),t0=S.th.map((x,i)=>x*rel[i]),td=d3.sum(t0);tsh=t0.map(x=>x/td);tmg=S.tm}
  $('sum').textContent='Shares are normalized (entered totals: race '+d3.sum(S.sh).toFixed(1)+'%, community type '+d3.sum(S.th).toFixed(1)+'%).';
- $('thint').textContent=TYOK?'Community type is a second cut of the same voters, so it stacks with the race inputs above. County mix: 2020 Census urban/rural population split by land-area density. Margins: national exit polls (approximate).':'County community-type data (2020 Census) didn’t load here, so these inputs don’t move the map yet.';
+ $('thint').textContent=TYOK?'Community type is a second cut of the same voters, so it stacks with the race inputs above. County mix: 2020 Census urban/rural population split by land-area density. Margins: national exit polls (approximate).':'County community-type data (2020 Census) didn’t load here, so every county uses the national community-type mix. The inputs still move the map, just less precisely.';
  $('dcardsT').innerHTML=TY.map((n,i)=>`<div class=gc><small>${n} voters</small><div class=n>${(tsh[i]*100).toFixed(1)}%</div><div class=k><i style="width:${Math.min(100,tsh[i]*100)}%"></i></div><small>${n0(tot*tsh[i])} voters</small><small>share of electorate</small></div>`).join('');
  const ct=DEMOT[CMPY]?DEMOT[CMPY][1]:null;
  $('dtabT').innerHTML=`<tr><th>Community</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${CMPY}</th><th>Shift</th></tr>`+TY.map((n,i)=>{const m=tmg[i],sh=ct?m-ct[i]:0;return `<tr><td>${n}</td><td>${(tsh[i]*100).toFixed(1)}%</td><td>${n0(tot*tsh[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${ct?fmt(ct[i]):'–'}</td><td class="${sh>0?'D':'R'}">${sh>0?'← D ':'R → '}${Math.abs(sh).toFixed(1)}</td></tr>`}).join('');
@@ -481,7 +481,7 @@ async function main(){
  if(!ALL.size)$('msg').textContent='County data could not be downloaded here (blocked in this preview). Showing real 2024 state results and built-in historical state results; counties unlock on GitHub Pages or after running build_data.py and committing data/.';
  else $('msg').style.display='none';
  chooseBase(2024);
- loadTypes().then(ok=>{if(ok)upd()}).catch(e=>console.warn('community type',e));
+ loadTypes().then(ok=>{if(ok&&!COUNTYOK)setBase(BASEY);upd()}).catch(e=>console.warn('community type',e));
 }
 $('modes').innerHTML=Object.entries(MODES).map(([k,v])=>`<button data-k=${k} class="${k===MODE?'on':''}">${v}</button>`).join('');
 $('modes').onclick=e=>{const k=e.target.dataset.k;if(!k)return;MODE=k;document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));if(C.size)paint()};
