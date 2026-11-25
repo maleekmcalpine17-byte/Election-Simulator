@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Election Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<style>
+:root{--bg:#080c14;--p:#111a2a;--l:#26324a;--t:#e8ecf4;--m:#8b97ad;--g:#e2c07a;--d:#5aa0e6;--r:#ec6b7e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:14px system-ui,sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--l)}h1{margin:0;font:600 24px Georgia,serif}header small{color:var(--m)}
+main{display:grid;grid-template-columns:320px minmax(0,1fr) 290px;gap:14px;padding:14px}
+@media(max-width:1150px){main{grid-template-columns:1fr}}
+.card{background:var(--p);border:1px solid var(--l);border-radius:10px;padding:12px;margin-bottom:12px}
+h2{margin:0 0 8px;font:600 11px system-ui;letter-spacing:.12em;text-transform:uppercase;color:var(--g)}
+label{display:block;margin:6px 0;color:var(--m);font-size:12px}label b{float:right;color:var(--t)}
+input[type=range]{width:100%}input[type=text],input[type=number],select{background:#080c14;color:var(--t);border:1px solid var(--l);border-radius:5px;padding:4px;width:100%}
+table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:4px;text-align:left;color:var(--m);border-bottom:1px solid #1c2640}td:first-child{color:var(--t)}
+button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tabs button.on{background:#e6dcff;color:#111}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px;font-size:12px;color:var(--m)}.row select{width:auto}.row label{margin:0}
+#map{background:#f3f1ec;border-radius:10px;width:100%;height:auto;display:block}
+#leg{height:10px;width:200px;border-radius:5px}
+#tip{position:fixed;pointer-events:none;background:#000e;padding:6px 8px;border-radius:6px;font-size:12px;display:none;z-index:9;line-height:1.5}
+.D{color:var(--d)}.R{color:var(--r)}.sub{font-size:11px;letter-spacing:.1em;color:var(--g);text-transform:uppercase}
+.cand{display:grid;grid-template-columns:1fr auto;margin:10px 0;font-size:15px}.cand small{grid-column:1;color:var(--m)}.cand b{grid-row:1/3;grid-column:2;font:600 22px Georgia,serif}
+.tag{display:inline-block;border:1px solid var(--l);border-radius:4px;padding:2px 6px;font-size:11px}
+.bar{height:14px;display:flex;border-radius:7px;overflow:hidden;margin:8px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px}
+.gc{border:1px solid var(--l);border-radius:8px;padding:10px;background:#0c1422}.gc .n{font:600 26px Georgia,serif;color:var(--g)}.gc .k{height:5px;background:#26324a;margin:6px 0}.gc .k i{display:block;height:100%;background:var(--g)}.gc small{color:var(--m);display:block}
+.gd{float:right;border:1px solid #7fd6b0;color:#7fd6b0;border-radius:6px;padding:1px 8px;font:600 14px Georgia,serif;letter-spacing:0}
+.bk{height:6px;background:#26324a;border-radius:3px}.bk i{display:block;height:100%;background:var(--g);border-radius:3px}
+#msg{padding:24px;color:var(--m)}
+</style></head><body>
+<header><h1>Election Simulator</h1><small>Partisan lean · campaign quality · national environment · turnout · demographics</small></header>
+<main>
+<div>
+ <div class="card"><h2>State</h2><select id="sel"><option value="">United States</option></select><div id="sinfo" style="margin-top:8px;color:var(--m)"></div><div id="sadj"></div></div>
+ <div class="card"><h2>National</h2><div id="nat"></div></div>
+ <div class="card"><h2>Democratic campaign <span class="gd" id="gdD"></span></h2><input type="text" id="dn" value="Democrat"><div id="cd"></div></div>
+ <div class="card"><h2>Republican campaign <span class="gd" id="gdR"></span></h2><input type="text" id="rn" value="Republican"><div id="cr"></div></div>
+ <div class="card"><h2>Demographic electorate (national)</h2><table id="demo"></table><small id="sum" style="color:var(--m)"></small><br><br><button id="reset">Reset all</button></div>
+</div>
+<div>
+ <div class="card" style="padding:8px">
+  <div class="tabs" id="modes"></div>
+  <div class="row"><span>View</span><select id="lv"><option value="states">States</option><option value="counties">Counties</option></select><span>Compare with</span><select id="cmp"><option value="2024">2024 actual</option><option value="2020">2020</option></select>
+   <label><input type="checkbox" id="arr"> Shift arrows (blue ← D, red → R)</label><div id="leg"></div><span id="legt"></span></div>
+  <svg id="map" viewBox="0 0 975 610"><g id="zz"><g id="z"></g><g id="zs"></g></g></svg><div id="msg">Loading…</div>
+ </div>
+ <div class="card"><h2>Who turned out · <span id="dgeo"></span></h2><div class="cards" id="dcards"></div><table id="dtab"></table><small id="dnote" style="color:var(--m)"></small></div>
+</div>
+<div>
+ <div class="card" id="rr"></div>
+ <div class="card"><h2>Closest states</h2><table id="close"></table></div>
+ <div class="card"><h2>Uncertainty</h2><button id="mc">Run 2,000 simulations</button><div id="mcr" style="margin-top:8px"></div></div>
+</div></main><div id="tip"></div>
+<script>
+const $=id=>document.getElementById(id);
+const G=['White','Black','Hispanic','Asian','Other'],F=['Message clarity','Policy substance','Audience connection','Coherence & judgment','Written execution'];
+const BASE={sh:[71,11,12,3,3],mg:[-12,70,6,18,-5]},B20=[-17,79,33,34,0],NCV=[157845332,29607116,33753153,11654239,0],DEF=BASE.sh.map(x=>x/100);
+const EV=Object.fromEntries("Alabama:9,Alaska:3,Arizona:11,Arkansas:6,California:54,Colorado:10,Connecticut:7,Delaware:3,District of Columbia:3,Florida:30,Georgia:16,Hawaii:4,Idaho:4,Illinois:19,Indiana:11,Iowa:6,Kansas:6,Kentucky:8,Louisiana:8,Maine:4,Maryland:10,Massachusetts:11,Michigan:15,Minnesota:10,Mississippi:6,Missouri:10,Montana:4,Nebraska:5,Nevada:6,New Hampshire:4,New Jersey:14,New Mexico:5,New York:28,North Carolina:16,North Dakota:3,Ohio:17,Oklahoma:7,Oregon:8,Pennsylvania:19,Rhode Island:4,South Carolina:9,South Dakota:3,Tennessee:11,Texas:40,Utah:6,Vermont:3,Virginia:13,Washington:12,West Virginia:4,Wisconsin:10,Wyoming:3".split(',').map(s=>{const i=s.lastIndexOf(':');return[s.slice(0,i),+s.slice(i+1)]}));
+const ST24=`Alabama,772412,1462616,2265090,-25.4
+Alaska,140026,184458,338177,-10.0
+Arizona,1582860,1770242,3390161,0.3
+Arkansas,396905,759241,1182676,-27.6
+California,9276179,6081697,15865475,29.2
+Colorado,1728159,1377441,3192745,13.5
+Connecticut,992053,736918,1759010,20.1
+Delaware,289758,214351,511697,19.0
+District of Columbia,294185,21076,325869,86.8
+Florida,4683038,6110125,10893752,-3.4
+Georgia,2548017,2663117,5250047,0.2
+Hawaii,313044,193661,516701,29.5
+Idaho,274972,605246,904812,-30.7
+Illinois,3062863,2449079,5633310,17.0
+Indiana,1163603,1720347,2936677,-16.0
+Iowa,707278,927019,1663506,-8.2
+Kansas,544853,758802,1327591,-14.6
+Kentucky,704043,1337494,2074530,-25.9
+Louisiana,766870,1208505,2006975,-18.6
+Maine,435652,377977,830794,9.1
+Maryland,1902577,1035550,3038334,33.2
+Massachusetts,2126518,1251303,3473668,33.5
+Michigan,2736533,2816636,5664186,2.8
+Minnesota,1656979,1519032,3253920,7.1
+Mississippi,466668,747744,1228008,-16.5
+Missouri,1200599,1751986,2995327,-15.4
+Montana,231906,352079,602963,-16.4
+Nebraska,369995,564816,947159,-19.1
+Nevada,705197,751205,1484840,2.4
+New Hampshire,418488,395523,826189,7.4
+New Jersey,2220713,1968215,4272725,15.9
+New Mexico,478802,423391,923403,10.8
+New York,4619195,3578899,8262495,23.2
+North Carolina,2715375,2898423,5699141,-1.3
+North Dakota,112327,246505,368155,-33.4
+Ohio,2533699,3180116,5767788,-8.0
+Oklahoma,499599,1036213,1566173,-33.1
+Oregon,1240600,919480,2244493,16.1
+Pennsylvania,3423042,3543308,7034206,1.2
+Rhode Island,285156,214406,513386,20.8
+South Carolina,1028452,1483747,2548140,-11.7
+South Dakota,146859,272081,428922,-26.2
+Tennessee,1056265,1966865,3063942,-23.2
+Texas,4835250,6393597,11388674,-5.6
+Utah,562566,883818,1488494,-20.5
+Vermont,235791,119395,369422,35.1
+Virginia,2335395,2075085,4505941,10.1
+Washington,2245849,1530923,3924243,19.2
+West Virginia,214309,533556,762390,-38.9
+Wisconsin,1668229,1697626,3415787,0.6
+Wyoming,69527,192633,269048,-43.4`; // 2024: American Presidency Project (certified totals); 2020 margins rounded, approximate
+const MODES={margin:'Vote margin',turnout:'Turnout',swing:'Swing',lead:'Size of lead',flips:'Flips',vsstate:'County vs. state'};
+const init=()=>({env:0,lean:1,imp:.3,to:0,st:{},sh:[...BASE.sh],mg:[...BASE.mg],d:[80,80,80,80,80],r:[80,80,80,80,80]});
+let LEVEL='counties',STATEONLY=false,sp,S=init(),C=new Map(),ST={},NAT=0,paths,geo,sf,SN={},SEL='',MODE='margin',svg,zm,pth;
+const dv=(a)=>d3.scaleDiverging(d3.interpolateRdBu).domain([-a,0,a]);
+const col=dv(40),sw=dv(15),vss=dv(20),ld=dv(5.5),tu=d3.scaleSequential(d3.interpolatePurples).domain([.35,.85]);
+const fmt=m=>(m>=0?'D+':'R+')+Math.abs(m).toFixed(1),n0=x=>Math.round(x).toLocaleString(),gr=x=>x>=90?'A':x>=80?'B':x>=70?'C':x>=60?'D':'F',NA='#cfcbc2';
+function sl(l,min,max,step,v,cb){const d=document.createElement('label');d.innerHTML=`${l}<b>${v}</b><input type=range min=${min} max=${max} step=${step} value=${v}>`;const i=d.lastChild,b=d.firstElementChild;i.oninput=()=>{b.textContent=i.value;cb(+i.value);upd()};return d}
+function build(){
+ for(const id of['nat','cd','cr'])$(id).innerHTML='';
+ $('nat').append(sl('National environment (− R / + D pts)',-15,15,.5,S.env,v=>S.env=v),sl('Partisan lean strength (×)',.5,1.5,.05,S.lean,v=>S.lean=v),sl('Candidate impact (pts per score pt)',0,1,.05,S.imp,v=>S.imp=v),sl('Turnout change (pts of eligible voters)',-10,10,.5,S.to,v=>S.to=v));
+ F.forEach((f,i)=>{$('cd').append(sl(f,0,100,1,S.d[i],v=>S.d[i]=v));$('cr').append(sl(f,0,100,1,S.r[i],v=>S.r[i]=v))});
+ const t=$('demo');t.innerHTML='<tr><th>Group</th><th>Electorate %</th><th>D margin</th></tr>';
+ G.forEach((g,i)=>{const r=t.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value=${S.sh[i]}></td><td><input type=number step=1 value=${S.mg[i]}></td>`;
+  const[a,b]=r.querySelectorAll('input');a.oninput=()=>{S.sh[i]=+a.value||0;upd()};b.oninput=()=>{S.mg[i]=+b.value||0;upd()}});
+}
+function agg(list){const o={v:0,v0:0,d:0,r:0,x:0,b:0,x2:0,w2:0,cs:0,cn:0,s:[0,0,0,0,0]};
+ for(const c of list){o.v+=c.vs;o.v0+=c.v;o.d+=c.vs*c.pdS;o.r+=c.vs*c.prS;o.x+=c.vs*c.m;o.b+=c.v*c.m0;if(c.m20!=null){o.x2+=c.v*c.m20;o.w2+=c.v}if(c.cvap){o.cs+=c.cvap;o.cn++}const s=c.s||DEF;for(let i=0;i<5;i++)o.s[i]+=c.vs*s[i]}
+ o.m=o.x/o.v;o.b/=o.v0;o.m20=o.w2?o.x2/o.w2:null;o.cv=o.cn===list.length?o.cs:null;return o}
+function calc(){
+ const k=S.sh.map((s,i)=>s/BASE.sh[i]),edge=(d3.mean(S.d)-d3.mean(S.r))*S.imp,by={};
+ for(const c of C.values()){const s=c.s||DEF;let b=0,a=0,w=0;
+  s.forEach((x,i)=>{b+=x*BASE.mg[i];a+=x*k[i]*S.mg[i];w+=x*k[i]});
+  c.m=NAT+(c.m0-NAT)*S.lean+(w?a/w:0)-b+S.env+edge+(S.st[c.st]||0);
+  const dm=(c.m-c.m0)/100;c.pdS=c.pd+dm/2;c.prS=c.pr-dm/2;
+  c.vs=c.v*(1+S.to/100/(c.cvap?Math.min(.95,c.v/c.cvap):.6));(by[c.st]??=[]).push(c)}
+ ST={};for(const s in by)ST[s]=agg(by[s]);ST.US=agg([...C.values()]);
+}
+const flip=(c,b)=>b!=null&&(c.m>0)!==(b>0);
+const UV=d=>{if(LEVEL==='counties')return C.get(d.id);const o=ST[SN[d.id]];return o&&{m:o.m,m0:o.b,m20:o.m20,vs:o.v,cvap:o.cv,pdS:o.d/o.v,prS:o.r/o.v,name:SN[d.id],st:SN[d.id]}};
+function paint(){
+ const cmp=$('cmp').value,Bm=c=>cmp==='2020'?c.m20:c.m0,st=LEVEL==='states',P=st?sp:paths;
+ d3.select('#z').style('display',st?'none':null);d3.select('#zs').style('display',st?null:'none');
+ P.attr('fill',d=>{const c=UV(d);
+  if(!c){const g=ST[SN[d.id.slice(0,2)]];return g&&MODE==='margin'?col(g.m):NA}
+  const b=Bm(c);
+  switch(MODE){case'margin':return col(c.m);case'turnout':return c.cvap?tu(c.vs/c.cvap):NA;
+   case'swing':return b==null?NA:sw(c.m-b);case'lead':return ld(Math.sign(c.m)*Math.log10(1+Math.abs(c.m)/100*c.vs));
+   case'vsstate':return st?NA:vss(c.m-ST[c.st].m);
+   case'flips':return b==null?NA:c.m>0?(b>0?'#a9cdea':'#1b5fa6'):(b>0?'#a61e34':'#f2a8b3')}})
+  .attr('stroke',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?'#d9a400':'#fff'})
+  .attr('stroke-width',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?.9:st?.5:.15})
+  .attr('opacity',d=>!SEL||SN[d.id.slice(0,2)]===SEL?1:.3);
+ const L={margin:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R+40 → D+40'],turnout:['linear-gradient(90deg,#f2f0f7,#54278f)','35% → 85% of eligible voters'],swing:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R shift ← → D shift (±15)'],lead:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Bigger vote lead = darker'],vsstate:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Redder/bluer than own state'],flips:['linear-gradient(90deg,#f2a8b3,#a61e34,#1b5fa6,#a9cdea)','Gold outline = county flipped (strong colors)']}[MODE];
+ $('leg').style.background=L[0];$('legt').textContent=L[1];
+ const a=$('arr').checked?(st?sf:geo).filter(d=>{const c=UV(d);return c&&Bm(c)!=null}):[];
+ const g=d3.select('#zz').selectAll('.ar').data(a,d=>d.id);g.exit().remove();
+ g.enter().append('path').attr('class','ar').attr('fill','none').attr('stroke-width',.7).attr('pointer-events','none').merge(g)
+  .attr('stroke',d=>{const c=UV(d);return c.m-Bm(c)>0?'#0b3d91':'#9b1c31'})
+  .attr('d',d=>{const c=UV(d),L=Math.max(-18,Math.min(18,-(c.m-Bm(c))*.6)),[x,y]=d._c,h=L>0?-2.5:2.5;return `M${x},${y}h${L}m0,0l${h},-1.8m${-h},1.8l${h},1.8`});
+}
+function panels(){
+ const dn=$('dn').value,rn=$('rn').value,g=ST[SEL||'US'],name=SEL||'United States',tot=g.v,mg=(g.d-g.r)/tot*100,dw=g.d>g.r,hold=(g.b>0)===dw,ot=tot-g.d-g.r;
+ const row=(nm,v,c,w)=>`<div class=cand><span class=${c}>${nm}${w?' ✓':''}</span><b class=${c}>${(v/tot*100).toFixed(2)}%</b><small>${n0(v)} votes</small></div>`;
+ let ev='';if(!SEL){let D=0,R=0;for(const s in ST)if(s!=='US')(ST[s].m>0?D+=EV[s]||0:R+=EV[s]||0);
+  ev=`<div style="font:600 28px Georgia,serif"><span class=D>${D}</span> – <span class=R>${R}</span> <small style="font:12px system-ui;color:var(--m)">electoral votes (winner-take-all)</small></div><div class=bar><div style="width:${D/5.38}%;background:var(--d)"></div><div style="width:${R/5.38}%;background:var(--r)"></div></div>`;
+  $('mc').dataset.d=D}else ev=`<small style="color:var(--m)">${EV[SEL]||''} electoral votes → <b class="${dw?'D':'R'}">${dw?dn:rn}</b></small><br>`;
+ $('rr').innerHTML=`<div class=sub>${name} · President · simulated</div><h2 style="font:600 26px Georgia,serif;color:var(--t);letter-spacing:0;text-transform:none;margin:4px 0">Race results</h2>${row(dn,g.d,'D',dw)}${row(rn,g.r,'R',!dw)}${ot>1?`<div class=cand><span>Other</span><b style="font-size:16px">${(ot/tot*100).toFixed(2)}%</b><small>${n0(ot)} votes</small></div>`:''}<span class=tag>${dw?'Democratic':'Republican'} ${hold?'hold':'gain'} vs 2024</span><p style="color:var(--m);margin:8px 0">${n0(tot)} votes · ${fmt(mg)} points · 2024: ${fmt(g.b)}</p>${ev}`;
+ $('close').innerHTML=Object.entries(ST).filter(([s])=>s!=='US').sort((a,b)=>Math.abs(a[1].m)-Math.abs(b[1].m)).slice(0,10).map(([s,o])=>`<tr><td>${s}</td><td class="${o.m>0?'D':'R'}">${fmt(o.m)}</td><td>${EV[s]||''} EV</td></tr>`).join('');
+ for(const[id,x]of[['gdD',S.d],['gdR',S.r]]){const m=d3.mean(x);$(id).textContent=gr(m)+' · '+m.toFixed(1)}
+ $('sum').textContent='Shares are normalized (entered total '+d3.sum(S.sh).toFixed(1)+'%).';
+ const us=ST.US,rel=g.s.map((x,i)=>(x/g.v)/(us.s[i]/us.v)),sh0=S.sh.map((x,i)=>x*rel[i]),sd=d3.sum(sh0),shr=sh0.map(x=>x/sd);
+ $('dgeo').textContent=name;
+ $('dcards').innerHTML=G.slice(0,4).map((n,i)=>{const v=tot*shr[i],t=SEL?null:v/NCV[i];return `<div class=gc><small>${n} voters</small><div class=n>${t==null?(shr[i]*100).toFixed(1)+'%':(t*100).toFixed(1)+'%'}</div><div class=k><i style="width:${Math.min(100,(t==null?shr[i]*100:t*100))}%"></i></div><small>${n0(v)} voters</small>${t==null?'<small>share of electorate</small>':`<small>${n0(NCV[i])} citizen adults</small>`}</div>`}).join('');
+ $('dtab').innerHTML='<tr><th>Group</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>2020</th><th>Shift</th></tr>'+G.map((n,i)=>{const m=S.mg[i],s=m-B20[i];return `<tr><td>${n}</td><td>${(shr[i]*100).toFixed(1)}%</td><td>${n0(tot*shr[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${fmt(B20[i])}</td><td class="${s>0?'D':'R'}">${s>0?'← D ':'R → '}${Math.abs(s).toFixed(1)}</td></tr>`}).join('');
+ $('dnote').textContent=(SEL?'Electorate shares scale the national mix by this state’s population composition. ':'Turnout = voters ÷ citizen voting-age population (ACS, per group). ')+'Group margins are national; 2020 group margins are approximate.';
+}
+function upd(){if(!C.size)return;calc();paint();panels();
+ const o=ST[SEL];$('sinfo').innerHTML=o?`<b>${SEL}</b> · ${EV[SEL]||''} EV · ${fmt(o.m)} (2024 actual ${fmt(o.b)})`:'Pick a state or click a county to zoom in.'}
+function selState(){
+ $('sadj').innerHTML='';if(SEL)$('sadj').append(sl('State adjustment (− R / + D pts)',-20,20,.5,S.st[SEL]||0,v=>S.st[SEL]=v));
+ if(!SEL)svg.transition().duration(500).call(zm.transform,d3.zoomIdentity);
+ else{const f=sf.find(x=>x.properties.name===SEL),[[x0,y0],[x1,y1]]=pth.bounds(f),k=Math.min(10,.9/Math.max((x1-x0)/975,(y1-y0)/610));
+  svg.transition().duration(600).call(zm.transform,d3.zoomIdentity.translate(487.5-k*(x0+x1)/2,305-k*(y0+y1)/2).scale(k))}
+ upd();
+}
+const get=async(urls,parse)=>{for(const u of urls){try{return await parse(u)}catch(e){console.warn(u,e)}}return null};
+function ingest(a){for(const r of a){if(!r.t)continue;C.set(r.f,{name:r.n,st:r.s,v:r.t,pd:r.d/r.t,pr:r.g/r.t,m0:(r.d-r.g)/r.t*100,m20:r.m2!=null?r.m2:r.t2?(r.d2-r.g2)/r.t2*100:null,s:r.sh,cvap:r.cv})}}
+async function live(){
+ const U=['https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-24/master/','https://cdn.jsdelivr.net/gh/tonmcg/US_County_Level_Election_Results_08-24@master/'];
+ const csv=y=>get(U.map(u=>u+y+'_US_County_Level_Presidential_Results.csv'),d3.csv),A='https://api.census.gov/data/2022/acs/acs5?for=county:*&get=';
+ const [c24,c20,dm,cv]=await Promise.all([csv(2024),csv(2020),get([A+'B03002_001E,B03002_003E,B03002_004E,B03002_012E,B03002_006E'],d3.json),get([A+'B29001_001E'],d3.json)]);
+ if(!c24)return null;
+ const p5=s=>String(s).padStart(5,'0'),fp=r=>p5(r.county_fips||r.fips),M={};
+ for(const r of c24)M[fp(r)]={f:fp(r),n:r.county_name,s:r.state_name,d:+r.votes_dem,g:+r.votes_gop,t:+(r.total_votes||+r.votes_dem+ +r.votes_gop)};
+ if(c20)for(const r of c20){const o=M[fp(r)];if(o){o.d2=+r.votes_dem;o.g2=+r.votes_gop;o.t2=+(r.total_votes||o.d2+o.g2)}}
+ if(dm)for(const r of dm.slice(1)){const o=M[r[5]+r[6]],t=+r[0];if(o&&t){const s=[1,2,3,4].map(i=>+r[i]/t);o.sh=[...s,Math.max(0,1-d3.sum(s))]}}
+ if(cv)for(const r of cv.slice(1)){const o=M[r[1]+r[2]];if(o)o.cv=+r[0]}
+ return Object.values(M)}
+async function main(){
+ const tp=await get(['data/counties-albers-10m.json','https://cdn.jsdelivr.net/npm/us-atlas@3/counties-albers-10m.json','https://unpkg.com/us-atlas@3/counties-albers-10m.json'],d3.json);
+ if(!tp){$('msg').textContent='Could not load county geometry. Open this page from GitHub Pages or a local server (not file://), and make sure scripts/data are not blocked.';return}
+ geo=topojson.feature(tp,tp.objects.counties).features;sf=topojson.feature(tp,tp.objects.states).features;sf.forEach(f=>SN[f.id]=f.properties.name);
+ $('sel').innerHTML+=sf.map(f=>f.properties.name).sort().map(n=>`<option>${n}</option>`).join('');
+ pth=d3.geoPath();geo.forEach(d=>d._c=pth.centroid(d));
+ const z=d3.select('#z');svg=d3.select('#map');
+ paths=z.selectAll('.c').data(geo).join('path').attr('class','c').attr('d',pth).attr('fill',NA).attr('stroke','#fff').attr('stroke-width',.15);
+ const tipFn=(e,d)=>{const c=UV(d),t=$('tip');t.style.display='block';t.style.left=Math.min(e.clientX+12,innerWidth-240)+'px';t.style.top=e.clientY+12+'px';
+  t.innerHTML=c?`<b>${LEVEL==='counties'?c.name+', '+c.st:c.name}</b><br><span class=D>${n0(c.vs*c.pdS)} (${(c.pdS*100).toFixed(1)}%)</span> D<br><span class=R>${n0(c.vs*c.prS)} (${(c.prS*100).toFixed(1)}%)</span> R<br>Margin ${fmt(c.m)} · 2024 ${fmt(c.m0)}${c.m20!=null?' · 2020 '+fmt(c.m20):''}<br>${n0(c.vs)} votes${c.cvap?' · turnout '+(c.vs/c.cvap*100).toFixed(1)+'%':''}`:`${SN[d.id.slice(0,2)]||''} (no county data)`};
+ const pick=(e,d)=>{SEL=SN[d.id.slice(0,2)]||'';$('sel').value=SEL;selState()},hide=()=>$('tip').style.display='none';
+ sf.forEach(d=>d._c=pth.centroid(d));
+ sp=d3.select('#zs').selectAll('path').data(sf).join('path').attr('d',pth).attr('fill',NA).attr('stroke','#fff').attr('stroke-width',.5).style('cursor','pointer').on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
+ paths.on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
+ d3.select('#zz').append('path').datum(topojson.mesh(tp,tp.objects.states,(a,b)=>a!==b)).attr('fill','none').attr('stroke','#222').attr('stroke-width',.6).attr('pointer-events','none');
+ zm=d3.zoom().scaleExtent([1,14]).on('zoom',e=>d3.select('#zz').attr('transform',e.transform));svg.call(zm);
+ $('sel').onchange=()=>{SEL=$('sel').value;selState()};
+ $('msg').textContent='Geometry loaded. Loading results…';
+ let rows=await get(['data/counties.json'],d3.json);if(!rows||!rows.length)rows=await live();
+ if(!rows){const ix=Object.fromEntries(Object.entries(SN).map(([k,v])=>[v,k]));
+  rows=ST24.split('\n').map(l=>{const p=l.split(',');return{f:ix[p[0]]+'000',n:p[0],s:p[0],d:+p[1],g:+p[2],t:+p[3],m2:+p[4]}});STATEONLY=true;LEVEL='states';$('lv').value='states';$('lv').querySelector('[value=counties]').disabled=true}
+ ingest(rows);if(!C.size){$('msg').textContent='Vote data loaded but no counties parsed.';return}
+ NAT=d3.sum([...C.values()],c=>c.v*c.m0)/d3.sum([...C.values()],c=>c.v);
+ if(STATEONLY)$('msg').textContent='County data could not be downloaded here (blocked in this preview). Showing real state-level results; counties unlock on GitHub Pages or after running build_data.py and committing data/.';else{LEVEL='counties';$('lv').value='counties';$('msg').remove()}
+ upd();
+}
+$('modes').innerHTML=Object.entries(MODES).map(([k,v])=>`<button data-k=${k} class="${k===MODE?'on':''}">${v}</button>`).join('');
+$('modes').onclick=e=>{const k=e.target.dataset.k;if(!k)return;MODE=k;document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));if(C.size)paint()};
+$('arr').onchange=$('cmp').onchange=()=>C.size&&paint();
+$('lv').onchange=()=>{LEVEL=$('lv').value;if(C.size)paint()};
+$('dn').oninput=$('rn').oninput=upd;
+$('reset').onclick=()=>{S=init();build();if(paths)selState()};
+$('mc').onclick=()=>{const st=Object.entries(ST).filter(([s])=>s!=='US').map(([s,o])=>[o.m,EV[s]||0]);let w=0,tot=0;const N=2000,nr=d3.randomNormal(0,3),sr=d3.randomNormal(0,3.5);
+ for(let i=0;i<N;i++){const n=nr(),e=st.reduce((a,[m,v])=>a+(m+n+sr()>0?v:0),0);tot+=e;if(e>=270)w++}
+ $('mcr').innerHTML=`<b class=D>${$('dn').value}</b> wins ${(w/N*100).toFixed(1)}% · <b class=R>${$('rn').value}</b> ${(100-w/N*100).toFixed(1)}%<br>Average D electoral votes: ${(tot/N).toFixed(0)}<br><small>σ national 3 pts, state 3.5 pts</small>`};
+build();main().catch(e=>{console.error(e);$('msg').textContent='Error: '+e.message});
+</script></body></html>
