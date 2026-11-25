@@ -2,37 +2,171 @@
 """Builds data/counties.json and data/counties-albers-10m.json for index.html.
 
 Run from the repo root (needs internet):   python build_data.py
-Optional: set CENSUS_API_KEY (free at api.census.gov/data/key_signup.html) if the Census API rejects keyless requests.
+Optional: set CENSUS_API_KEY to use a different Census key (a default key is built in).
 Standard library only.
 
-counties.json = list of {f, n, y:{year:[dem,gop,total]}, sh:[white,black,hispanic,asian,other], cv, ty:[urban,suburban,rural]}
-  results   : tonmcg/US_County_Level_Election_Results_08-24 (2008-2024)
-  sh, cv    : ACS 2022 5-year (B03002 race shares of population, B29001 citizen voting-age population)
-  ty        : 2020 Census urban/rural population (Table P2) split by county land-area density (same rule as index.html)
+counties.json = list of
+  {f, n, y:{year:[dem,gop,total]},
+   shv:{vintage:[white,black,hispanic,asian,other]},   race shares of population, per Census vintage
+   tyv:{vintage:[urban,suburban,rural]},               community type, per Census vintage
+   cvv:{vintage:adult population},                     voting-age pop (2000/2010/2020) or citizen VAP (2022)
+   sh, cv, ty}                                         legacy fields (2022 race, 2022 CVAP, 2020 type)
+
+Census vintages (index.html picks the one that matches the election year, or the one you choose):
+  2000  Census 2000 SF1
+  2010  Census 2010 SF1
+  2020  Census 2020 PL 94-171 (race, adults) + DHC (urban/rural)
+  2022  ACS 2022 5-year (B03002 race shares, B29001 citizen voting-age population)
+Variable codes are looked up in the Census variables.json files when the built-in guess fails, and every vintage
+is sanity-checked (national Hispanic / White / urban shares) before it is kept, so a bad code skips that vintage
+instead of writing wrong numbers.
+
+  results : tonmcg/US_County_Level_Election_Results_08-24 (2008-2024)
+  type    : Census urban/rural population split by county land-area density (same rule as index.html)
 """
 import csv, io, json, math, os, re, urllib.request, urllib.parse
 
 YEARS = [2008, 2012, 2016, 2020, 2024]
-KEY = os.environ.get("CENSUS_API_KEY")
+KEY = os.environ.get("CENSUS_API_KEY", "c1f724c3832633ff1237e167f6821e940339e767")
 RAW = "https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-24/master/{}_US_County_Level_Presidential_Results.csv"
 ATLAS = "https://cdn.jsdelivr.net/npm/us-atlas@3/counties-albers-10m.json"
 METRO, CORE = (100, 500), (1000, 10000)  # density ramps (people / sq mi), keep in sync with TYC in index.html
 
+# race = [total, hispanic, white non-Hisp, black non-Hisp, asian non-Hisp]; None = look the codes up in variables.json
+VINTAGES = {
+    2000: dict(path="2000/dec/sf1", race=None, vap=None, urb_path="2000/dec/sf1", urb=None),
+    2010: dict(path="2010/dec/sf1", race=["P005001", "P005010", "P005003", "P005004", "P005006"], vap="P010001",
+               urb_path="2010/dec/sf1", urb=("P002001", "P002002")),
+    2020: dict(path="2020/dec/pl", race=["P2_001N", "P2_002N", "P2_005N", "P2_006N", "P2_008N"], vap="P3_001N",
+               urb_path="2020/dec/dhc", urb=("P2_001N", "P2_002N")),
+}
+
+
 def fetch(url):
-    if KEY and "api.census.gov" in url:
+    if KEY and "api.census.gov" in url and "key=" not in url:
         url += ("&" if "?" in url else "?") + "key=" + urllib.parse.quote(KEY)
     with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "build_data.py"}), timeout=120) as r:
         return r.read()
 
-def census(url):
-    rows = json.loads(fetch(url))
-    return rows[1:]
 
 def num(x):
     return float(re.sub(r"[,\s]", "", str(x)))
 
+
+def get_cols(path, names):
+    """{fips: [float, ...]} for the given variables of a county-level Census dataset."""
+    rows = json.loads(fetch(f"https://api.census.gov/data/{path}?get={','.join(names)}&for=county:*"))
+    hdr = rows[0]
+    ix = [hdr.index(n) for n in names]
+    si, ci = hdr.index("state"), hdr.index("county")
+    out = {}
+    for r in rows[1:]:
+        try:
+            v = [num(r[i]) for i in ix]
+        except (TypeError, ValueError):
+            continue
+        if any(x < 0 for x in v):
+            continue
+        out[r[si] + r[ci]] = v
+    return out
+
+
+# ---- variable lookup (used only when the built-in codes fail or for vintages without built-in codes)
+_meta = {}
+
+
+def meta(path):
+    if path not in _meta:
+        _meta[path] = json.loads(fetch(f"https://api.census.gov/data/{path}/variables.json"))["variables"]
+    return _meta[path]
+
+
+def parts(label):
+    return [p.strip(" :") for p in label.split("!!") if p.strip(" :")]
+
+
+def by_concept(path, concept_ok):
+    groups = {}
+    for name, v in meta(path).items():
+        c = (v.get("concept") or "").upper().strip()
+        if "(" in c or not concept_ok(c):
+            continue
+        groups.setdefault(c, {})[name] = parts(v.get("label", ""))
+    return [groups[c] for c in sorted(groups, key=lambda c: min(groups[c]))]
+
+
+def first(group, ok):
+    for name in sorted(group):
+        if ok(group[name]):
+            return name
+    return None
+
+
+def resolve_race(path):
+    for g in by_concept(path, lambda c: re.match(r"^HISPANIC OR LATINO.*BY RACE$", c) and "18 YEARS" not in c):
+        nh = lambda p, last: p[-1] == last and "Not Hispanic or Latino" in p
+        names = [first(g, lambda p: p == ["Total"]),
+                 first(g, lambda p: p == ["Total", "Hispanic or Latino"]),
+                 first(g, lambda p: nh(p, "White alone")),
+                 first(g, lambda p: nh(p, "Black or African American alone")),
+                 first(g, lambda p: nh(p, "Asian alone"))]
+        if all(names):
+            return names
+    raise LookupError("race variables not found in " + path)
+
+
+def resolve_urban(path):
+    for g in by_concept(path, lambda c: c.startswith("URBAN AND RURAL")):
+        t, u = first(g, lambda p: p == ["Total"]), first(g, lambda p: p == ["Total", "Urban"])
+        if t and u:
+            return (t, u)
+    raise LookupError("urban/rural variables not found in " + path)
+
+
+def resolve_vap(path):
+    for g in by_concept(path, lambda c: c.endswith("18 YEARS AND OVER")):
+        t = first(g, lambda p: p == ["Total"])
+        if t:
+            return t
+    raise LookupError("18+ population variable not found in " + path)
+
+
+# ---- sanity checks (national shares must look like the real thing)
+def frac(data, i, j=0):
+    tot = sum(v[j] for v in data.values())
+    return sum(v[i] for v in data.values()) / tot if tot else 0
+
+
+def race_ok(d):
+    return (0.05 < frac(d, 1) < 0.30 and 0.40 < frac(d, 2) < 0.85 and 0.08 < frac(d, 3) < 0.20 and 0.01 < frac(d, 4) < 0.10)
+
+
+def urban_ok(d):
+    return 0.60 < frac(d, 1) < 0.95
+
+
+def vap_ok(vap, pop):
+    t = sum(pop[f][0] for f in vap if f in pop)
+    return t > 0 and 0.65 < sum(v[0] for f, v in vap.items() if f in pop) / t < 0.85
+
+
+def attempt(label, guesses, check):
+    """Try each way of getting a dataset (built-in codes first, then a variables.json lookup)."""
+    for g in guesses:
+        try:
+            data = g()
+            if data and check(data):
+                return data
+            print(f"  ! {label}: sanity check failed, trying next option" if data else f"  ! {label}: no data")
+        except Exception as e:
+            print(f"  ! {label}: {e}")
+    print(f"  ! {label}: skipped")
+    return None
+
+
 def ramp(d, a, b):
     return max(0.0, min(1.0, (math.log10(max(d, 1e-9)) - math.log10(a)) / (math.log10(b) - math.log10(a))))
+
 
 def type_shares(pop, urb, area):
     u = min(1.0, urb / pop)
@@ -40,6 +174,7 @@ def type_shares(pop, urb, area):
     metro = u * ramp(d, *METRO)
     core = ramp(d, *CORE)
     return [metro * core, metro * (1 - core), 1 - metro]
+
 
 def pick_columns(cols):
     fk = next((k for k in cols if re.search("fips", k, re.I)), None)
@@ -50,6 +185,7 @@ def pick_columns(cols):
     tk = next((k for k in cols if re.fullmatch(r"(total_?votes|total)", k, re.I)), None)
     nk = next((k for k in cols if re.fullmatch(r"(county_?name|county)", k, re.I)), None)
     return fk, dk, gk, tk, nk
+
 
 def add_results(M, year, text):
     rd = csv.DictReader(io.StringIO(text))
@@ -70,44 +206,92 @@ def add_results(M, year, text):
         o["y"][str(year)] = [int(d), int(g), int(t)]
         if year == 2024 and nk: o["n"] = r[nk]
 
+
+def race_shares(v):
+    """v = [total, hispanic, white, black, asian] -> [white, black, hispanic, asian, other]"""
+    t = v[0]
+    s = [v[2] / t, v[3] / t, v[1] / t, v[4] / t]
+    return [round(x, 4) for x in s] + [round(max(0.0, 1 - sum(s)), 4)]
+
+
 def main():
     os.makedirs("data", exist_ok=True)
     M = {}
     for y in YEARS:
         print("results", y)
         add_results(M, y, fetch(RAW.format(y)).decode("utf-8-sig"))
-    print("ACS race shares");  
-    for r in census("https://api.census.gov/data/2022/acs/acs5?for=county:*&get=B03002_001E,B03002_003E,B03002_004E,B03002_012E,B03002_006E"):
-        o = M.get(r[5] + r[6]); t = num(r[0])
-        if o and t:
-            s = [num(r[i]) / t for i in (1, 2, 3, 4)]
-            o["sh"] = [round(x, 4) for x in s] + [round(max(0.0, 1 - sum(s)), 4)]
-    print("ACS citizen voting-age population")
-    for r in census("https://api.census.gov/data/2022/acs/acs5?for=county:*&get=B29001_001E"):
-        o = M.get(r[1] + r[2])
-        if o: o["cv"] = int(num(r[0]))
-    print("Census urban/rural + land area")
-    dhc = census("https://api.census.gov/data/2020/dec/dhc?get=P2_001N,P2_002N&for=county:*")
+    for o in M.values():
+        o["shv"], o["tyv"], o["cvv"] = {}, {}, {}
+
+    print("land area")
     area = {}
     for v in ("2020", "2021"):
         try:
-            area = {r[1] + r[2]: num(r[0]) for r in census(f"https://api.census.gov/data/{v}/geoinfo?get=AREALAND_SQMI&for=county:*")}
+            rows = json.loads(fetch(f"https://api.census.gov/data/{v}/geoinfo?get=AREALAND_SQMI&for=county:*"))
+            area = {r[1] + r[2]: num(r[0]) for r in rows[1:]}
             break
         except Exception as e:
             print("  geoinfo", v, "failed:", e)
-    for r in dhc:
-        f = r[2] + r[3]; o = M.get(f); pop, urb = num(r[0]), num(r[1])
-        if o and pop > 0 and area.get(f, 0) > 0:
-            o["ty"] = [round(x, 4) for x in type_shares(pop, urb, area[f])]
+
+    for y, sp in VINTAGES.items():
+        print(f"Census {y}")
+        race = attempt(f"{y} race", ([lambda: get_cols(sp["path"], sp["race"])] if sp["race"] else []) +
+                                    [lambda: get_cols(sp["path"], resolve_race(sp["path"]))], race_ok)
+        pop = None
+        if race:
+            pop = {f: [v[0]] for f, v in race.items()}
+            for f, v in race.items():
+                o = M.get(f)
+                if o and v[0] > 0:
+                    o["shv"][str(y)] = race_shares(v)
+        urb = attempt(f"{y} urban/rural", ([lambda: get_cols(sp["urb_path"], list(sp["urb"]))] if sp["urb"] else []) +
+                                          [lambda: get_cols(sp["urb_path"], list(resolve_urban(sp["urb_path"])))], urban_ok)
+        if urb:
+            for f, v in urb.items():
+                o = M.get(f)
+                if o and v[0] > 0 and area.get(f, 0) > 0:
+                    o["tyv"][str(y)] = [round(x, 4) for x in type_shares(v[0], v[1], area[f])]
+        if pop:
+            vap = attempt(f"{y} adult population", ([lambda: get_cols(sp["path"], [sp["vap"]])] if sp["vap"] else []) +
+                                                   [lambda: get_cols(sp["path"], [resolve_vap(sp["path"])])],
+                          lambda d: vap_ok(d, pop))
+            for f, v in (vap or {}).items():
+                if f in M: M[f]["cvv"][str(y)] = int(v[0])
+
+    print("ACS 2022 race shares + citizen voting-age population")
+    A = "https://api.census.gov/data/2022/acs/acs5?for=county:*&get="
+    try:
+        rows = json.loads(fetch(A + "B03002_001E,B03002_003E,B03002_004E,B03002_012E,B03002_006E"))
+        for r in rows[1:]:
+            o = M.get(r[5] + r[6]); t = num(r[0])
+            if o and t > 0:
+                s = [num(r[i]) / t for i in (1, 2, 3, 4)]
+                o["shv"]["2022"] = [round(x, 4) for x in s] + [round(max(0.0, 1 - sum(s)), 4)]
+        for r in json.loads(fetch(A + "B29001_001E"))[1:]:
+            o = M.get(r[1] + r[2])
+            if o and num(r[0]) >= 0: o["cvv"]["2022"] = int(num(r[0]))
+    except Exception as e:
+        print("  ! ACS 2022 failed:", e)
+
     out = [o for o in M.values() if o["y"]]
+    for o in out:  # legacy fields for older copies of index.html
+        if "2022" in o["shv"]: o["sh"] = o["shv"]["2022"]
+        if "2022" in o["cvv"]: o["cv"] = o["cvv"]["2022"]
+        if "2020" in o["tyv"]: o["ty"] = o["tyv"]["2020"]
+        for k in ("shv", "tyv", "cvv"):
+            if not o[k]: del o[k]
     with open("data/counties.json", "w") as fh:
         json.dump(out, fh, separators=(",", ":"))
-    miss = lambda k: sum(1 for o in out if k not in o)
-    print(f"wrote data/counties.json: {len(out)} counties (missing race {miss('sh')}, cvap {miss('cv')}, type {miss('ty')})")
+    print(f"wrote data/counties.json: {len(out)} counties")
+    for k, name in (("shv", "race"), ("tyv", "community type"), ("cvv", "adult population")):
+        for v in ("2000", "2010", "2020", "2022"):
+            n = sum(1 for o in out if v in o.get(k, {}))
+            if n: print(f"  {name} {v}: {n} counties")
     print("map geometry")
     with open("data/counties-albers-10m.json", "wb") as fh:
         fh.write(fetch(ATLAS))
     print("done. Commit index.html and the data/ folder.")
+
 
 if __name__ == "__main__":
     main()
