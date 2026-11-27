@@ -12,7 +12,7 @@ main{display:grid;grid-template-columns:320px minmax(0,1fr) 290px;gap:14px;paddi
 .card{background:var(--p);border:1px solid var(--l);border-radius:10px;padding:12px;margin-bottom:12px}
 h2{margin:0 0 8px;font:600 11px system-ui;letter-spacing:.12em;text-transform:uppercase;color:var(--g)}
 label{display:block;margin:6px 0;color:var(--m);font-size:12px}label b{float:right;color:var(--t)}
-#satab input,#satabT input,#satabP input{width:56px}#satab td:last-child,#satabT td:last-child,#satabP td:last-child{white-space:nowrap}input[type=range]{width:100%}input[type=text],input[type=number],select{background:#080c14;color:var(--t);border:1px solid var(--l);border-radius:5px;padding:4px;width:100%}
+#satab input,#satabT input,#satabP input,#catab input,#catabT input,#catabP input{width:56px}#satab td:last-child,#satabT td:last-child,#satabP td:last-child{white-space:nowrap}input[type=range]{width:100%}input[type=text],input[type=number],select{background:#080c14;color:var(--t);border:1px solid var(--l);border-radius:5px;padding:4px;width:100%}
 table{width:100%;border-collapse:collapse;font-size:12px}td,th{padding:4px;text-align:left;color:var(--m);border-bottom:1px solid #1c2640}td:first-child{color:var(--t)}
 button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px 10px;cursor:pointer}
 .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}.tabs button.on{background:#e6dcff;color:#111}
@@ -37,10 +37,14 @@ button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px
 #msg{padding:24px;color:var(--m)}
 .hint{font-size:11px;color:var(--m);margin-top:6px;line-height:1.4}
 </style></head><body>
-<header><h1>Election Simulator</h1><small>Elections 2000–2024 · partisan lean · party ID · campaign quality · national environment · turnout · demographics · national or single-state mode</small></header>
+<header><h1>Election Simulator</h1><small>Elections 2000–2028 · House, Senate classes &amp; governor cycles · incumbent approval · partisan lean · party ID · campaign quality · national environment · turnout · demographics · national or single-state mode</small></header>
 <main>
 <div>
  <div class="card"><h2>Simulation</h2>
+  <div class="tabs" id="offtabs"><button data-o="pres" class="on">President</button><button data-o="house">House</button><button data-o="sen">Senate</button><button data-o="gov">Governor</button></div>
+  <div class="hint" id="offinfo" style="margin:-2px 0 8px"></div>
+  <div class="row" id="seatpick" style="display:none;margin:0 0 8px"><span>Seats up</span><select id="seatsel"></select></div>
+  <div id="sppanel" style="display:none;margin:0 0 10px;padding:8px 10px;border:1px solid #1c2640;border-radius:8px;background:#0c1422"></div>
   <div class="tabs" id="scope"><button data-k="national" class="on">National</button><button data-k="state">Individual state</button></div>
   <label>Starting election (baseline results)<select id="base"></select></label>
   <div class="hint" id="binfo"></div>
@@ -52,23 +56,36 @@ button{background:var(--l);color:var(--t);border:0;border-radius:6px;padding:6px
   <div class="hint" id="smsg">Saved elections appear under “Starting election” and “Compare with”.</div>
   <div class="row" style="margin:6px 0 0"><button id="sexp">Export saved</button><button id="simpb">Import saved</button><input type="file" id="simp" accept=".json,application/json" hidden></div>
  </div>
- <div class="card"><h2>State</h2><select id="sel"><option value="">United States</option></select><div id="sinfo" style="margin-top:8px;color:var(--m)"></div><div id="sadj"></div></div>
+ <div class="card"><h2>Scenario tools</h2>
+ <label>Apply the national environment of a past year<select id="envy"></select></label>
+ <div class="row" style="margin:6px 0 0"><button id="envgo">Apply</button><button id="envx">Clear environment</button></div>
+ <div class="hint" id="envh">Sets the national environment slider on every tab to that year’s House popular vote minus the starting year’s, so “2018” means a swing as large as the one from the starting year to 2018. Nothing else changes.</div>
+ <div class="row" style="margin:10px 0 0"><button id="shgo">Copy share link</button></div>
+ <input type="text" id="shurl" readonly style="margin-top:6px;display:none">
+ <div class="hint" id="shh">The link restores the starting election, every slider and your state and county adjustments (not saved elections).</div>
+ <label style="margin-top:10px"><input type="checkbox" id="evsplit" checked> Split electors in Maine and Nebraska by congressional district</label>
+ <div class="hint">Needs county data. District results are rebuilt from county results (Kennebec County split 50/50; NE-2 = Douglas + Sarpy), so they are approximations. At 269–269 the House picks by state delegation.</div>
+</div>
+<div class="card"><h2>Compare two scenarios</h2><div class="row" style="margin:0 0 8px"><button id="cmpA">Capture as A</button><button id="cmpB">Capture as B</button><button id="cmpX">Clear</button></div><div id="cmpout"></div><div class="hint">Captures every office’s current result (named from the name box if it is filled in). Change inputs, then capture again as B. Held in this page only; “Save as election” keeps one.</div></div>
+<div class="card"><h2>State</h2><select id="sel"><option value="">United States</option></select><div id="sinfo" style="margin-top:8px;color:var(--m)"></div><div id="sadj"></div></div>
  <div class="card" id="sacard"><h2 id="satitle">State group adjustments</h2><table id="satab"></table><table id="satabT" style="margin-top:10px"></table><table id="satabP" style="margin-top:10px"></table><div class="hint" id="sahint"></div><div id="salist" style="margin-top:6px"></div><button id="sareset" style="margin-top:8px">Reset this state’s group adjustments</button></div>
+ <div class="card" id="cacard" style="display:none"><h2 id="catitle">County adjustments</h2><div id="cares"></div><div id="cabox"></div><table id="catab" style="margin-top:8px"></table><table id="catabT" style="margin-top:10px"></table><table id="catabP" style="margin-top:10px"></table><div class="hint" id="cahint"></div><button id="careset" style="margin-top:8px">Reset this county</button></div>
  <div class="card" id="natcard"><h2>National</h2><div id="nat"></div></div>
+ <div class="card" id="apcard"><h2>Incumbent president &amp; approval</h2><div id="apbox"></div></div>
  <div class="card" id="stcard" style="display:none"><h2>State race</h2><div id="stc"></div></div>
  <div class="card"><h2>Democratic campaign <span class="gd" id="gdD"></span></h2><input type="text" id="dn" value="Democrat"><div id="cd"></div></div>
  <div class="card"><h2>Republican campaign <span class="gd" id="gdR"></span></h2><input type="text" id="rn" value="Republican"><div id="cr"></div></div>
- <div class="card"><h2 id="dtitle">Demographic electorate (national)</h2><table id="demo"></table><div class="sub" style="margin:14px 0 6px">Community type (national)</div><table id="demoT"></table><div class="hint" id="thint"></div><div class="sub" style="margin:14px 0 6px">Party identification (national)</div><table id="demoP"></table><div class="hint" id="phint"></div><small id="sum" style="color:var(--m)"></small><br><br><button id="reset">Reset all</button></div>
+ <div class="card"><h2 id="dtitle">Demographic electorate (national)</h2><table id="demo"></table><div class="sub" style="margin:14px 0 6px">Community type (national)</div><table id="demoT"></table><div class="hint" id="thint"></div><div class="sub" style="margin:14px 0 6px">Party identification (national)</div><table id="demoP"></table><div class="hint" id="phint"></div><div class="sub" style="margin:14px 0 6px">Age (national)</div><table id="demoA"></table><div class="sub" style="margin:14px 0 6px">Education (national)</div><table id="demoE"></table><div class="hint" id="xhint"></div><small id="sum" style="color:var(--m)"></small><br><br><button id="reset">Reset all</button></div>
 </div>
 <div>
  <div class="card" style="padding:8px">
   <div class="tabs" id="modes"></div>
   <div class="row"><span>View</span><select id="lv"><option value="states">States</option><option value="counties">Counties</option></select><span>Compare with</span><select id="cmp"></select>
    <label><input type="checkbox" id="arr"> Shift arrows (blue ← D shift, red → R shift)</label><div id="leg"></div><span id="legt"></span></div>
-  <div class="mbar"><button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button><button id="zreset">Reset map</button></div>
+  <div class="mbar"><button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button><button id="zreset">Reset map</button><button id="pngb" title="Download the map as a PNG">Save map image</button></div>
   <svg id="map" viewBox="0 0 975 610"><g id="zz"><g id="z"></g><g id="zs"></g></g></svg><div id="msg">Loading…</div><div id="binleg"></div>
  </div>
- <div class="card"><h2>Who turned out · <span id="dgeo"></span></h2><div class="sub" style="margin:0 0 8px">By race &amp; ethnicity</div><div class="cards" id="dcards"></div><table id="dtab"></table><div class="sub" style="margin:16px 0 8px">By community type</div><div class="cards" id="dcardsT"></div><table id="dtabT"></table><div class="sub" style="margin:16px 0 8px">By party identification</div><div class="cards" id="dcardsP"></div><table id="dtabP"></table><small id="dnote" style="color:var(--m)"></small></div>
+ <div class="card"><h2>Who turned out · <span id="dgeo"></span></h2><div class="sub" style="margin:0 0 8px">By race &amp; ethnicity</div><div class="cards" id="dcards"></div><table id="dtab"></table><div class="sub" style="margin:16px 0 8px">By community type</div><div class="cards" id="dcardsT"></div><table id="dtabT"></table><div class="sub" style="margin:16px 0 8px">By party identification</div><div class="cards" id="dcardsP"></div><table id="dtabP"></table><div class="sub" style="margin:16px 0 8px">By age</div><table id="dtabA"></table><div class="sub" style="margin:16px 0 8px">By education</div><table id="dtabE"></table><small id="dnote" style="color:var(--m)"></small></div>
 </div>
 <div>
  <div class="card" id="rr"></div>
@@ -96,7 +113,14 @@ const DEFP=DEMOP[2024][0].map(x=>x/100),PK=.35; // PK: how strongly a county's b
 // Census has no "suburban" class, so: Census-urban people in dense counties = urban core, in less dense counties = suburban, Census-rural = rural.
 // Density ramps are log-scale: metro = how much of the Census-urban population counts as metro (0 below 100/sq mi, 1 above 500); core = share of that in the urban core (0 below 1,000, 1 above 10,000).
 const TYC={metro:[100,500],core:[1000,10000]};
-const BASE={sh:[...DEMO[2024][0]],mg:[...DEMO[2024][1]],th:[...DEMOT[2024][0]],tm:[...DEMOT[2024][1]],ph:[...DEMOP[2024][0]],pm:[...DEMOP[2024][1]]};
+// ---- age and education: national exit-poll style figures [electorate %, D margin], typed from memory (approximate, editable). Only 2016, 2020 and 2024 are typed; other years use the nearest.
+// County mixes come from data/counties.json (ACS 2022: adults by age, adults 25+ by education); without them every county uses the national mix.
+const AG=['18–29','30–44','45–64','65+'],ED=['No college degree','College degree'];
+const DEMOX={2016:{a:[[19,25,40,16],[18,8,-8,-8]],e:[[50,50],[-8,9]]},2020:{a:[[17,25,38,20],[24,7,-1,-5]],e:[[59,41],[-2,12]]},2024:{a:[[14,25,39,22],[11,-1,-10,-3]],e:[[57,43],[-14,13]]}};
+const XG=[{k:'a',n:'Age',names:AG,f:'ag'},{k:'e',n:'Education',names:ED,f:'ed'}];
+const DX=y=>{let b=2024;for(const v of[2016,2020,2024])if(Math.abs(v-y)<Math.abs(b-y))b=v;return DEMOX[b]},cx=o=>({a:[...o.a],e:[...o.e]}),
+ xb=y=>{const d=DX(y);return{xs:{a:[...d.a[0]],e:[...d.e[0]]},xm:{a:[...d.a[1]],e:[...d.e[1]]}}},DEFX={a:DEMOX[2024].a[0].map(x=>x/100),e:DEMOX[2024].e[0].map(x=>x/100)};
+let BASE={sh:[...DEMO[2024][0]],mg:[...DEMO[2024][1]],th:[...DEMOT[2024][0]],tm:[...DEMOT[2024][1]],ph:[...DEMOP[2024][0]],pm:[...DEMOP[2024][1]],...xb(2024)};
 const NM="Alabama,Alaska,Arizona,Arkansas,California,Colorado,Connecticut,Delaware,District of Columbia,Florida,Georgia,Hawaii,Idaho,Illinois,Indiana,Iowa,Kansas,Kentucky,Louisiana,Maine,Maryland,Massachusetts,Michigan,Minnesota,Mississippi,Missouri,Montana,Nebraska,Nevada,New Hampshire,New Jersey,New Mexico,New York,North Carolina,North Dakota,Ohio,Oklahoma,Oregon,Pennsylvania,Rhode Island,South Carolina,South Dakota,Tennessee,Texas,Utah,Vermont,Virginia,Washington,West Virginia,Wisconsin,Wyoming".split(',');
 // Electoral votes by apportionment (same alphabetical order as NM): 2000 election, 2004/08, 2012/16/20, 2024
 const EVT={1990:[9,3,8,6,54,8,8,3,3,25,13,4,4,22,12,7,6,8,9,4,10,12,18,10,7,11,3,5,4,4,15,5,33,14,3,21,8,7,23,4,8,3,11,32,5,3,13,11,5,11,3],
@@ -211,10 +235,71 @@ const S24={};let tot24=0;ST24.split('\n').forEach(l=>{const p=l.split(',');S24[p
 // National turnout (approx.) and third-party share used only when a historical year falls back to the built-in state table.
 const NT={2000:105.4e6,2004:122.3e6,2008:131.3e6,2012:129.1e6,2016:136.7e6,2020:158.4e6},OT={2000:.04,2004:.01,2008:.02,2012:.02,2016:.05,2020:.02};
 const MT={};NM.forEach(n=>{MT[n]={};YEARS.slice(0,6).forEach((y,i)=>MT[n][y]=HM[n][i]);const[d,g,t]=S24[n];MT[n][2024]=(d-g)/t*100});
+// Real Senate / Governor results in presidential years (D minus R, points), one race per state. 2024 Senate and 2024/2020 governor figures checked against Ballotpedia;
+// 2016/2020 Senate and 2016 governor typed from memory (about +/-0.5 pt). Independents who caucus with Democrats (King ME, Sanders VT) count as D.
+// Left out: races with no D-vs-R contest (CA 2016, AR 2020, LA 2020). GA 2020 = the regular Perdue/Ossoff race (runoff); NE 2024 = the regular Fischer race.
+const PN='AL,AK,AZ,AR,CA,CO,CT,DE,DC,FL,GA,HI,ID,IL,IN,IA,KS,KY,LA,ME,MD,MA,MI,MN,MS,MO,MT,NE,NV,NH,NJ,NM,NY,NC,ND,OH,OK,OR,PA,RI,SC,SD,TN,TX,UT,VT,VA,WA,WV,WI,WY'.split(',');
+const pr=t=>{const o={};t.split(',').forEach(x=>{const m=/^([A-Z]{2})(-?[\d.]+)$/.exec(x);o[NM[PN.indexOf(m[1])]]=+m[2]});return o};
+const RES={sen:{
+2016:pr('AL-28.1,AK-33.3,AZ-13.0,AR-23.6,CO5.7,CT28.6,FL-7.7,GA-13.8,HI51.4,ID-38.3,IL15.1,IN-9.7,IA-24.4,KS-30.0,KY-14.6,LA-21.4,MD25.2,MO-3.0,NV2.4,NH0.1,NY43.4,NC-5.7,ND-61.6,OH-20.8,OK-43.1,OR23.1,PA-1.5,SC-24.4,SD-43.6,UT-40.9,VT28.3,WA18.1,WI-3.4'),
+2020:pr('AL-20.4,AK-12.7,AZ2.4,CO9.3,DE21.5,GA1.2,ID-29.4,IL14.3,IA-6.6,KS-11.4,KY-19.6,ME-8.6,MA33.0,MI1.7,MN5.2,MS-10.0,MT-10.0,NE-29.3,NH15.7,NJ16.3,NM6.1,NC-1.8,OK-30.1,OR17.6,RI33.2,SC-10.2,SD-31.4,TN-27.0,TX-9.6,VA12.0,WV-43.3,WY-47.2'),
+2024:pr('AZ2.2,CA19.6,CT15.8,DE17.0,FL-12.8,HI34.1,IN-21.1,MA22.4,MD7.8,ME17.4,MI0.3,MN18.2,MO-8.2,MS-28.0,MT-8.4,ND-32.9,NE-4.6,NJ9.9,NM8.8,NV1.3,NY17.1,OH-3.8,PA-0.2,RI15.4,TN-30.6,TX-9.8,UT-27.5,VA7.6,VT31.1,WA19.8,WI0.9,WV-44.0,WY-51.0')},
+gov:{
+2016:pr('DE19.2,IN-6.0,MO-5.9,MT3.9,NH-2.3,NC0.2,ND-57.1,OR7.2,UT-38.1,VT-8.8,WA8.8,WV6.7'),
+2020:pr('DE20.9,IN-24.4,MO-16.4,MT-12.8,NH-31.7,NC4.5,ND-40.4,UT-32.7,VT-41.1,WA13.5,WV-33.3'),
+2024:pr('DE11.8,IN-15.2,MO-16.2,MT-21.7,NH-6.3,NC11.7,ND-44.8,UT-26.0,VT-49.5,WA12.8,WV-33.6')}};
+// ---- which seats are up in a given year
+// Senate: three classes on a 6-year rotation (class 1 = 2000, 2006, 2012, 2018, 2024 ...). Governors: 4-year terms in presidential years (plus NH and VT, which also vote in midterms),
+// 36 states in midterm years, and KY/LA/MS or NJ/VA in odd years. Special elections: a few are built in below; you can call, switch, or remove them in the “Special elections” panel.
+const ABN=a=>new Set(a.map(x=>NM[PN.indexOf(x)]));
+const SC={1:'AZ,CA,CT,DE,FL,HI,IN,ME,MD,MA,MI,MN,MS,MO,MT,NE,NV,NJ,NM,NY,ND,OH,PA,RI,TN,TX,UT,VT,VA,WA,WV,WI,WY'.split(','),
+ 2:'AL,AK,AR,CO,DE,GA,ID,IL,IA,KS,KY,LA,ME,MA,MI,MN,MS,MT,NE,NH,NJ,NM,NC,OK,OR,RI,SC,SD,TN,TX,VA,WV,WY'.split(','),
+ 3:'AL,AK,AZ,AR,CA,CO,CT,FL,GA,HI,ID,IL,IN,IA,KS,KY,LA,MD,MO,NV,NH,NY,NC,ND,OH,OK,OR,PA,SC,SD,UT,VT,WA,WI'.split(',')};
+const GC={P:'DE,IN,MO,MT,NH,NC,ND,UT,VT,WA,WV'.split(','),M:'AL,AK,AZ,AR,CA,CO,CT,FL,GA,HI,ID,IL,IA,KS,ME,MD,MA,MI,MN,NE,NV,NH,NM,NY,OH,OK,OR,PA,RI,SC,SD,TN,TX,VT,WI,WY'.split(','),K:['KY','LA','MS'],N:['NJ','VA']};
+const SCN={1:'Class 1 (2000, 2006, 2012, 2018, 2024)',2:'Class 2 (2002, 2008, 2014, 2020, 2026)',3:'Class 3 (2004, 2010, 2016, 2022, 2028)'},
+ GCN={P:'Presidential-year governors (11 states)',M:'Midterm-year governors (36 states)',K:'Odd-year governors: KY, LA, MS',N:'Odd-year governors: NJ, VA'};
+const senCls=y=>y%2?null:((y-2000)/2%3+3)%3+1,govCls=y=>y%4===0?'P':y%2===0?'M':y%4===3?'K':'N',isPresY=y=>typeof y==='number'&&y%4===0&&y<=2024,pyOf=y=>Math.min(2024,y-y%4);
+const SEATSEL={sen:null,gov:null};
+function seatSetFor(o,y,sv){const sel=SEATSEL[o],yr=sv?(sv.yr||2024):y;
+ if(o==='house')return yr%2?new Set():new Set(NM.filter(n=>n!=='District of Columbia'));
+ if(o==='sen'){const c=sel?+sel:senCls(yr);return c?ABN(SC[c]):new Set()}
+ return ABN(GC[sel||govCls(yr)])}
+// A seat with no certified result built in starts from its state's presidential margin plus that state's usual (office minus president) gap in the years that are built in.
+const OFFSET={};for(const o of['sen','gov']){const a={};for(const y in RES[o])for(const s in RES[o][y]){const pm=MT[s]&&MT[s][y];if(pm!=null)(a[s]??=[]).push(RES[o][y][s]-pm)}OFFSET[o]={};for(const s in a)OFFSET[o][s]=a[s].reduce((x,z)=>x+z,0)/a[s].length}
+// ---- special elections (Senate / Governor).
+// SPR: a SECOND Senate race on the same ballot as a regular one (GA 2020: Warnock vs Loeffler runoff, D+2.1); the regular Perdue/Ossoff race stays in RES.
+// SPO: states whose only entry in RES is itself a special (AZ 2020: Kelly vs McSally, D+2.4; Arizona had no regular race that year).
+// SPD: specials that start in a year with no certified results built in (their baseline is an estimate). Remove or switch any of them in the panel.
+const SPR={sen:{2020:{GA:2.1}}},SPO={sen:{2020:['AZ']}},SPD={sen:{2026:['OH','FL']}},nmOf=a=>NM[PN.indexOf(a)];
+// ---- House of Representatives. No district-level data or map is built in, so each state's House seats are ESTIMATED from its House vote margin with a seats-votes curve
+// (a logistic curve, calibrated so the 2024 baseline reproduces the real 2024 delegation: 215 D - 220 R). Seats per state by apportionment (DC has a non-voting delegate, so 0).
+const HN20=[7,1,9,4,52,8,5,1,0,28,14,2,2,17,9,4,4,6,6,2,8,9,13,8,4,8,2,3,4,2,12,3,26,14,1,15,5,6,17,2,7,1,9,38,4,1,11,10,2,8,1],
+ HN10=[7,1,9,4,53,7,5,1,0,27,14,2,2,18,9,4,4,6,6,2,8,9,14,8,4,8,1,3,4,2,12,3,27,13,1,16,5,5,18,2,7,1,9,36,4,1,11,10,3,8,1],
+ HN00=[7,1,8,4,53,7,5,1,0,25,13,2,2,19,9,5,4,6,7,2,8,10,15,8,4,9,1,3,3,2,13,3,29,13,1,18,5,5,19,2,6,1,9,32,3,1,11,9,3,8,1],
+ D24=[2,0,3,0,43,4,5,1,0,8,5,2,0,14,2,0,1,1,2,2,7,9,6,4,1,2,0,0,3,2,9,3,19,4,0,5,0,5,7,2,1,0,1,13,0,1,6,8,0,2,0];
+const D24M={};D24.forEach((d,i)=>{if(NM[i]!=='District of Columbia')D24M[NM[i]]=d});
+// National House popular vote, D minus R in points (typed from memory, about +/-0.5; 2024 confirmed R+2.6). Used to put the baseline House vote at the right national level, since a presidential map alone misses it.
+const HNAT={2000:-.5,2002:-4.8,2004:-2.6,2006:8,2008:10.6,2010:-6.8,2012:1.2,2014:-5.7,2016:-1.1,2018:8.6,2020:3.1,2022:-2.8,2024:-2.6};
+const hyr=y=>y>=2022?HN20:y>=2012?HN10:HN00,hyE=y=>y>=2024?2024:y%2?y-1:y;
+// Real D seats on election night (typed from memory, about +/-2). Years without real state delegations built in are calibrated to this national total with one uniform bias term.
+const HSEATD={2000:212,2002:205,2004:202,2006:233,2008:257,2010:193,2012:201,2014:188,2016:194,2018:235,2020:222,2022:213,2024:215};
+let HY=2024,HD0=null,HB=0;
+// ---- incumbent president & approval. Net approval (approve - disapprove) of the sitting president, final weeks before each election, Gallup-style; typed from memory (about +/-3 pts).
+// 2026 onward are placeholders: set your own.
+const AP={2000:20,2002:30,2004:-1,2006:-20,2008:-45,2010:-4,2012:4,2014:-13,2016:7,2018:-11,2020:-6,2022:-14,2024:-18},APD=y=>AP[y]??AP[y-1]??AP[y+1]??-10,
+ incOf=y=>y<2001?'D':y<2009?'R':y<2017?'D':y<2021?'R':y<2025?'D':'R',
+ APB={pres:.2,house:.3,sen:.2,gov:.08}, // margin points per net-approval point (rules of thumb: midterm/House most nationalised, governors least)
+ APG=.8; // a state's net approval of the president moves ~this much per point it leans toward (or away from) the president's party
+const sgn=x=>x==='D'?1:x==='R'?-1:0,sg=n=>(n>0?'+':'')+Math.round(n),incName=x=>x==='D'?'Democratic president':x==='R'?'Republican president':'no incumbent effect';
 const MODES={margin:'Vote margin',turnout:'Turnout',swing:'Swing',lead:'Size of lead',flips:'Flips',vsstate:'County vs. state'};
-const init=()=>({env:0,lean:1,imp:.3,to:0,st:{},sto:{},sa:{},race:'',sh:[...BASE.sh],mg:[...BASE.mg],th:[...BASE.th],tm:[...BASE.tm],ph:[...BASE.ph],pm:[...BASE.pm],d:[80,80,80,80,80],r:[80,80,80,80,80]});
-let LEVEL='counties',COUNTYOK=false,sp,S=init(),C=new Map(),ALL=new Map(),ST={},NAT=0,paths,geo,sf,SN={},IX={},SEL='',MODE='margin',svg,zm,pth,SCOPE='national',BASEY=2024,CMPY=2024,EV={},SMEAN={},SBASE={},TBASE={},PBASE={},TYOK=false,VINT='auto',BASEL='2024',LASTV=null;
+let LEVEL='counties',COUNTYOK=false,sp,S,C=new Map(),ALL=new Map(),ST={},NAT=0,paths,geo,sf,SN={},IX={},SEL='',MODE='margin',svg,zm,pth,SCOPE='national',BASEY=2024,CMPY=2024,EV={},SMEAN={},SBASE={},TBASE={},PBASE={},TYOK=false,VINT='auto',BASEL='2024',LASTV=null;
 const SV={},SAVEDL=[],AVAIL={sh:new Set(),ty:new Set(),cv:new Set()},VN={2000:'2000 Census',2010:'2010 Census',2020:'2020 Census',2022:'2022 ACS 5-year'},SKEY='electionsim.saved.v1';
+// ---- offices: President, Senate and Governor are simulated side by side. Each has its own baseline results, group inputs, candidate grades and adjustments.
+const OFFS=['pres','house','sen','gov'],ON={pres:'President',house:'House',sen:'Senate',gov:'Governor'},OS={},OF={},BASEO={};
+let OFFK='pres',SELC='';
+OFFS.forEach(o=>BASEO[o]={sh:[...BASE.sh],mg:[...BASE.mg],th:[...BASE.th],tm:[...BASE.tm],ph:[...BASE.ph],pm:[...BASE.pm],ap:APD(2024),inc:incOf(2024),xs:cx(BASE.xs),xm:cx(BASE.xm)});
+const initS=off=>{const b=BASEO[off]||BASE;return{env:0,lean:1,imp:.3,to:0,osh:0,st:{},sto:{},sa:{},ca:{},cq:{},hold:{},sp:{},nr:{},ns:{},sw:{},race:'',dn:'Democrat',rn:'Republican',sh:[...b.sh],mg:[...b.mg],th:[...b.th],tm:[...b.tm],ph:[...b.ph],pm:[...b.pm],ap:b.ap,inc:b.inc,apb:APB[off],apo:{},dq:80,rq:80,tp:0,rf:50,rs:0,vr:{},xs:cx(b.xs||BASE.xs),xm:cx(b.xm||BASE.xm)}};
+OFFS.forEach(o=>OS[o]=initS(o));S=OS.pres;
 // Built-in approximate state race/ethnicity mix (ACS-style, % of population: White NH, Black, Hispanic, Asian; Other = remainder). Used only until real county data loads, so state-level group shifts still differ by state offline.
 const SFALL={Alabama:[63,26,5,1.5],Alaska:[60,3,7,6.5],Arizona:[52,4,32,3.5],Arkansas:[67,15,8,1.8],California:[34,5,40,15.5],Colorado:[66,4,22,3.6],Connecticut:[63,10,17,5],Delaware:[59,22,11,4.3],"District of Columbia":[37,41,11,4.5],Florida:[53,14,27,3],Georgia:[49,31,10,4.7],Hawaii:[20,2,11,37],Idaho:[80,.8,13,1.6],Illinois:[58,14,18,6.4],Indiana:[76,9,8,2.7],Iowa:[84,3.7,6.8,2.8],Kansas:[73,5.5,13,3],Kentucky:[83,8,4,1.7],Louisiana:[56,31,7,1.9],Maine:[91,1.7,2,1.4],Maryland:[47,29,11,6.5],Massachusetts:[69,6.5,13,7],Michigan:[73,13,6,3.5],Minnesota:[76,6.5,6,5.2],Mississippi:[55,37,3.5,1.1],Missouri:[77,11,5,2.5],Montana:[84,.5,4,.9],Nebraska:[75,5,12,2.8],Nevada:[45,9,29,9.5],"New Hampshire":[88,1.5,4,3],"New Jersey":[53,12,21,10.2],"New Mexico":[35,2,50,2],"New York":[54,14,19,9],"North Carolina":[60,20,11,3.3],"North Dakota":[82,3,4,1.6],Ohio:[77,12,4,2.6],Oklahoma:[62,7,12,2.3],Oregon:[73,2,14,5],Pennsylvania:[73,10,8,4.3],"Rhode Island":[70,6,17,3.7],"South Carolina":[62,25,7,1.8],"South Dakota":[80,1.8,4.5,1.5],Tennessee:[73,16,6,2],Texas:[39,12,40,5.5],Utah:[77,1.4,15,2.7],Vermont:[90,1.3,2,1.8],Virginia:[61,18,10,7],Washington:[64,4,13,9.5],"West Virginia":[90,3.3,1.8,.8],Wisconsin:[79,6,7,3],Wyoming:[83,1,10,1]};for(const n in SFALL){const a=SFALL[n];SBASE[n]=[...a,Math.max(0,100-a.reduce((x,y)=>x+y,0))]}
 const dv=(a)=>d3.scaleDiverging(d3.interpolateRdBu).domain([-a,0,a]);
@@ -224,30 +309,95 @@ const DB=['#e9e9fb','#cacaf7','#a9a9f6','#8686f5','#6464f2','#3a3aec','#1c1cc8',
 const bi=a=>{a=Math.abs(a);return a<1?0:a<3?1:a<6?2:a<10?3:a<20?4:a<35?5:a<50?6:7},binCol=m=>(m>=0?DB:RB)[bi(m)];
 let ZK=1,RS=()=>0,BV=new Map(),AS=new Map(),AMAX=24;
 function sl(l,min,max,step,v,cb){const d=document.createElement('label');d.innerHTML=`${l}<b>${v}</b><input type=range min=${min} max=${max} step=${step} value=${v}>`;const i=d.lastChild,b=d.firstElementChild;i.oninput=()=>{b.textContent=i.value;cb(+i.value);upd()};return d}
+const setAll=(k,v)=>OFFS.forEach(o=>OS[o][k]=v);
 const saOf=st=>S.sa[st]??={dm:[0,0,0,0,0],ds:[0,0,0,0,0],tm:[0,0,0],ts:[0,0,0],pm:[0,0,0],ps:[0,0,0]};
 const saZero=a=>!a||[a.dm,a.ds,a.tm,a.ts,a.pm,a.ps].every(v=>!v||v.every(x=>!x));
 // Effective electorate for a state = national values + that state's own adjustments.
 // share: state composition x national share change + share shift, renormalised. margin: national group margin + margin shift.
-function effSA(st){const b=SBASE[st]||BASE.sh,kN=S.sh.map((x,i)=>x/BASE.sh[i]),a=S.sa[st],ds=a?a.ds:[0,0,0,0,0],dm=a?a.dm:[0,0,0,0,0];
+function effSA(st,s=S,B=BASE){const b=SBASE[st]||B.sh,kN=s.sh.map((x,i)=>x/B.sh[i]),a=s.sa[st],ds=a?a.ds:[0,0,0,0,0],dm=a?a.dm:[0,0,0,0,0];
  const raw=b.map((x,i)=>Math.max(0,x*kN[i]+ds[i])),sd=d3.sum(raw)||1;
- return{sh:raw.map(x=>x/sd*100),mg:S.mg.map((m,i)=>m+dm[i]),k:b.map((x,i)=>x>0?raw[i]/x:kN[i])}}
+ return{sh:raw.map(x=>x/sd*100),mg:s.mg.map((m,i)=>m+dm[i]),k:b.map((x,i)=>x>0?raw[i]/x:kN[i])}}
 // Same idea for community type: state mix x national share change + state share shift, margins = national + state shift.
-function effST(st){const b=TBASE[st]||BASE.th,kN=S.th.map((x,i)=>x/BASE.th[i]),a=S.sa[st],ds=a&&a.ts?a.ts:[0,0,0],dm=a&&a.tm?a.tm:[0,0,0];
+function effST(st,s=S,B=BASE){const b=TBASE[st]||B.th,kN=s.th.map((x,i)=>x/B.th[i]),a=s.sa[st],ds=a&&a.ts?a.ts:[0,0,0],dm=a&&a.tm?a.tm:[0,0,0];
  const raw=b.map((x,i)=>Math.max(0,x*kN[i]+ds[i])),sd=d3.sum(raw)||1;
- return{sh:raw.map(x=>x/sd*100),mg:S.tm.map((m,i)=>m+dm[i]),k:b.map((x,i)=>x>0?raw[i]/x:kN[i])}}
+ return{sh:raw.map(x=>x/sd*100),mg:s.tm.map((m,i)=>m+dm[i]),k:b.map((x,i)=>x>0?raw[i]/x:kN[i])}}
 // Same again for party ID: state's estimated party mix x national share change + state share shift; margins = national + state shift.
-function effSP(st){const b=PBASE[st]||BASE.ph,kN=S.ph.map((x,i)=>x/BASE.ph[i]),a=S.sa[st],ds=a&&a.ps?a.ps:[0,0,0],dm=a&&a.pm?a.pm:[0,0,0];
+function effSP(st,s=S,B=BASE){const b=PBASE[st]||B.ph,kN=s.ph.map((x,i)=>x/B.ph[i]),a=s.sa[st],ds=a&&a.ps?a.ps:[0,0,0],dm=a&&a.pm?a.pm:[0,0,0];
  const raw=b.map((x,i)=>Math.max(0,x*kN[i]+ds[i])),sd=d3.sum(raw)||1;
- return{sh:raw.map(x=>x/sd*100),mg:S.pm.map((m,i)=>m+dm[i]),k:b.map((x,i)=>x>0?raw[i]/x:kN[i])}}
+ return{sh:raw.map(x=>x/sd*100),mg:s.pm.map((m,i)=>m+dm[i]),k:b.map((x,i)=>x>0?raw[i]/x:kN[i])}}
+// Candidate quality: one 0-100 grade per candidate (F below 60 ... A 90+) with quick grade buttons.
+function gradeBox(el,who,get,set){const w=document.createElement('div');
+ w.innerHTML=`<label>${who} candidate quality · F 0 → A 100<b></b><input type=range min=0 max=100 step=1></label><div class=row style="margin:0 0 6px">${[['F',55],['D',65],['C',75],['B',85],['A',95]].map(([g,v])=>`<button data-v=${v} style="padding:2px 9px">${g}</button>`).join('')}</div>`;
+ const i=w.querySelector('input'),b=w.querySelector('b'),show=()=>{b.textContent=`${get()} · ${gr(get())}`;i.value=get()};show();
+ i.oninput=()=>{set(+i.value);show();upd()};w.querySelectorAll('button').forEach(x=>x.onclick=()=>{set(+x.dataset.v);show();upd()});el.append(w)}
+// Per-state extras: whether this office has a race here, a hypothetical-race switch, and state-specific candidate grades.
+function stateExtras(){const f=document.createDocumentFragment();if(!SEL)return f;
+ f.append(stateAP());
+ if(OFFK!=='pres'){const real=OF[OFFK].real.has(SEL),h=document.createElement('div');h.className='hint';
+  h.textContent=real?`${(OF[OFFK].kind||{})[SEL]==='spec'?'Special election for '+ON[OFFK].toLowerCase()+' in '+SEL:'Real '+ON[OFFK].toLowerCase()+' race in '+SEL} (${OF[OFFK].src==='saved'?'from the saved election':OF[OFFK].src==='est'?'seat is up this cycle; baseline is an estimate':'cycle results'}).`:`No ${ON[OFFK].toLowerCase()} race in ${SEL} in this cycle.`;f.append(h);
+  if(!real){const l=document.createElement('label');l.innerHTML='<input type=checkbox> Hold a hypothetical race here (starts from the presidential result)';const i=l.firstElementChild;i.checked=!!S.hold[SEL];i.onchange=()=>{if(i.checked)S.hold[SEL]=true;else delete S.hold[SEL];upd()};f.append(l)}}
+ if(OFFK!=='house'){const l=document.createElement('label');l.innerHTML='Vote rule in '+SEL+'<select><option value="">Default ('+VRN[ruleOf(OFFK,SEL,{})]+')</option>'+Object.keys(VRN).map(k=>`<option value=${k}>${VRN[k]}</option>`).join('')+'</select>';
+  const i=l.querySelector('select');i.value=(S.vr||{})[SEL]||'';i.onchange=()=>{S.vr??={};if(i.value)S.vr[SEL]=i.value;else delete S.vr[SEL];upd()};f.append(l);
+  const h=document.createElement('div');h.className='hint';h.textContent='If no candidate gets 50% statewide, a runoff or ranked-choice count moves the third-party vote using the 2nd-choice and runoff sliders. With the defaults (50% / no shift) the margin is unchanged; the rule matters once you add third-party vote or skew those sliders.';f.append(h);
+  if(SCOPE==='state')f.append(...tpBox())}
+ const q=()=>S.cq[SEL]||[S.dq,S.rq],set=(i,v)=>{(S.cq[SEL]??=[S.dq,S.rq])[i]=v},t=document.createElement('div');t.className='sub';t.style.margin='12px 0 4px';t.textContent='Candidates in '+SEL;f.append(t);
+ gradeBox(f,'Democratic',()=>q()[0],v=>set(0,v));gradeBox(f,'Republican',()=>q()[1],v=>set(1,v));
+ const b=document.createElement('button');b.textContent='Use the race-wide candidate grades';b.onclick=()=>{delete S.cq[SEL];selState()};f.append(b);return f}
+// ---- House seats (expected values from the state's House margin) ----
+// Logistic seats-votes curve per state: seats(m) = d0 + N*(L(m-b) - L(m0-b)), where d0 = baseline D seats and b is chosen so the curve passes through the baseline.
+// Small states respond more sharply (their few districts move together); one-seat states are winner-take-all.
+const hk=N=>Math.min(14,4*(N-1));
+function solveHB(){HB=0;const O=OF.house,tgt=HSEATD[hyE(HY)];if(!O||!O.real.size||tgt==null)return;let lo=-40,hi=40;
+ for(let i=0;i<40;i++){const mid=(lo+hi)/2;let t=0;for(const st of O.real){const N=hyr(HY)[NM.indexOf(st)]||0,m=O.SMEAN[st];if(!N||m==null)continue;t+=N===1?(m>0?1:0):N/(1+Math.exp(-(m-mid)/hk(N)))}if(t>tgt)lo=mid;else hi=mid}HB=(lo+hi)/2}
+function hseats(st,m,T){const o=(T||ST)[st],N=hyr(HY)[NM.indexOf(st)]||0;if(!o||!N)return{N:0,d:0,d0:0};
+ const m0=o.b;if(N===1){const d0=m0>0?1:0;return{N,d:m>0?1:0,d0}}
+ const k=hk(N),L=x=>1/(1+Math.exp(-x/k)),dk=HD0&&HD0[st]!=null?Math.min(N,Math.max(0,HD0[st])):null;
+ if(dk==null)return{N,d:N*L(m-HB),d0:N*L(m0-HB)};
+ const q=Math.min(.95,Math.max(.05,dk/N)),b=m0-k*Math.log(q/(1-q));
+ return{N,d:Math.max(0,Math.min(N,dk+N*(L(m-b)-L(m0-b)))),d0:dk}}
+const abbr=s=>PN[NM.indexOf(s)];
+function hTot(T){let D=0,D0=0,N=0;const gain=[],loss=[];for(const[s,o]of Object.entries(T)){if(s==='US'||!o.act)continue;const h=hseats(s,o.m,T);if(!h.N)continue;const d=Math.round(h.d),d0=Math.round(h.d0);D+=d;D0+=d0;N+=h.N;if(d>d0)gain.push(`${abbr(s)} +${d-d0}`);if(d<d0)loss.push(`${abbr(s)} +${d0-d}`)}return{D,D0,N,gain,loss}}
+function hCell(s,o){const h=hseats(s,o.m);if(!h.N)return'';const d=Math.round(h.d),d0=Math.round(h.d0);return `${d} D – ${h.N-d} R${d!==d0?` (${d>d0?'+':'−'}${Math.abs(d-d0)} D)`:''}`}
+function houseEv(g,dn,rn,dw){
+ if(!SEL){const t=hTot(ST),R=t.N-t.D,n=t.N||1,need=Math.floor(t.N/2)+1;
+  return `<div style="font:600 28px Georgia,serif"><span class=D>${t.D}</span> – <span class=R>${R}</span> <small style="font:12px system-ui;color:var(--m)">House seats (estimated) · ${need} for a majority · ${esc(BASEL)}: ${t.D0}–${t.N-t.D0}</small></div><div class=bar><div style="width:${t.D/n*100}%;background:var(--d)"></div><div style="width:${R/n*100}%;background:var(--r)"></div></div><div class=hint>${t.gain.length?`<b class=D>Democratic gains:</b> ${t.gain.join(', ')}. `:''}${t.loss.length?`<b class=R>Republican gains:</b> ${t.loss.join(', ')}. `:''}${t.gain.length||t.loss.length?'':'No seats change vs '+esc(BASEL)+'. '}Seats are expected values from a state-level seats-votes curve, not district maps.</div>`}
+ const o=ST[SEL],h=o&&hseats(SEL,o.m);
+ if(!h||!h.N)return `<small style="color:var(--m)">No House seats in ${SEL} in this cycle</small><br>`;
+ const d=Math.round(h.d),d0=Math.round(h.d0);
+ return `<small style="color:var(--m)">${h.N} House seat${h.N>1?'s':''}: <b class=D>${d}</b> D – <b class=R>${h.N-d}</b> R (${esc(BASEL)}: ${d0}–${h.N-d0}) · estimated from the state vote margin</small><br>`}
+// ---- incumbent president & approval ----
+// A state's net approval of the president = national net + APG x (how far the state leans toward the president's party vs the nation, baseline margins). The margin effect is
+// impact x (incumbent sign x net approval now - the baseline's incumbent sign x the baseline's net approval), so with nothing changed it is exactly zero, and switching the party reverses the baseline effect.
+function apState(off,st){const Sx=OS[off],Bx=BASEO[off],O=OF[off],sS=sgn(Sx.inc),sB=sgn(Bx.inc),lean=((O.SMEAN&&O.SMEAN[st])??O.NAT)-O.NAT,
+ nb=(Bx.ap||0)+sB*APG*lean,ov=Sx.apo&&Sx.apo[st],ns=ov!=null?ov:(Sx.ap||0)+sS*APG*lean;
+ return{nb,ns,adj:(Sx.apb||0)*(sS*ns-sB*nb)}}
+// offices that share this tab's baseline (same year and president) move together; a midterm base year keeps the 2-years-older presidential tab separate
+const apPeers=()=>OFFS.filter(o=>BASEO[o].ap===BASEO[OFFK].ap&&BASEO[o].inc===BASEO[OFFK].inc);
+function buildAP(){const b=$('apbox');if(!b||!S)return;b.innerHTML='';
+ const l=document.createElement('label');l.innerHTML='President’s party (the incumbent)<select id=apinc><option value=D>Democratic</option><option value=R>Republican</option><option value="">None / no incumbent effect</option></select>';
+ const sl_=l.querySelector('select');sl_.value=S.inc||'';sl_.onchange=()=>{apPeers().forEach(o=>OS[o].inc=sl_.value);upd()};
+ const info=document.createElement('div');info.className='hint';info.id='apinfo';
+ const h=document.createElement('div');h.className='hint';h.textContent='Net approval = approve % − disapprove % (45% approve / 52% disapprove = −7). Each point of net approval away from the starting election’s level moves the incumbent party’s margin by the impact setting (defaults: President .20, House .30, Senate .20, Governor .08 – rules of thumb, not fitted). Select a state to set its own approval; states that lean toward the president’s party start higher than the nation. Switching the president’s party reverses the baseline effect. Starting approval is a Gallup-style figure typed from memory (about ±3); 2026 and later are placeholders. President, House, Senate and Governor tabs from the same starting year share these inputs; the impact setting is per tab.';
+ b.append(l,sl('Net approval, nationwide (approve − disapprove)',-70,70,1,Math.round(S.ap),v=>{const d=v-BASEO[OFFK].ap;apPeers().forEach(o=>OS[o].ap=BASEO[o].ap+d)}),sl('Approval impact (margin pts per net-approval pt)',0,.6,.01,S.apb,v=>S.apb=v),info,h)}
+function stateAP(){const w=document.createElement('div');
+ w.innerHTML=`<div class=sub style="margin:12px 0 4px">President’s approval in ${SEL}</div><label>Net approval in ${SEL} (approve − disapprove)<input type=number step=1 id=apst></label><div class=hint id=apsti></div>`;
+ const i=w.querySelector('input');i.value=S.apo[SEL]!=null?S.apo[SEL]:'';
+ i.oninput=()=>{const v=i.value===''?null:+i.value;apPeers().forEach(o=>{if(v==null||isNaN(v))delete OS[o].apo[SEL];else OS[o].apo[SEL]=v});upd()};
+ const b=document.createElement('button');b.textContent='Use the national figure for '+SEL;b.onclick=()=>{apPeers().forEach(o=>delete OS[o].apo[SEL]);i.value='';upd()};w.append(b);return w}
+function refreshAP(){const el=$('apinfo');if(!el||!S||!BASE)return;const sS=sgn(S.inc),sB=sgn(BASE.inc),nat=(S.apb||0)*(sS*S.ap-sB*BASE.ap);
+ el.innerHTML=`Starting election (${esc(BASEL)}): ${incName(BASE.inc)}, net <b>${sg(BASE.ap)}</b>. Effect on the ${OFFK==='house'?'House':ON[OFFK].toLowerCase()} margin now: <b class="${nat>.05?'D':nat<-.05?'R':''}">${Math.abs(nat)<.05?'none':fmt(nat)}</b> nationally.`;
+ const si=$('apst');if(si&&SEL&&OF[OFFK]&&OF[OFFK].SMEAN){const a=apState(OFFK,SEL);si.placeholder=Math.round(a.ns);const h=$('apsti');if(h)h.textContent=`Estimated ${Math.round(a.ns)} (starting ${Math.round(a.nb)}) → ${Math.abs(a.adj)<.05?'no margin change':fmt(a.adj)+' margin change'} from approval alone. Leave blank to use the national figure adjusted for how ${SEL} leans.`}}
 function build(){
  for(const id of['nat','cd','cr','stc'])$(id).innerHTML='';
- $('nat').append(sl('National environment (− R / + D pts)',-15,15,.5,S.env,v=>S.env=v),sl('Partisan lean strength (×)',.5,1.5,.05,S.lean,v=>S.lean=v),sl('Candidate impact (pts per score pt)',0,1,.05,S.imp,v=>S.imp=v),sl('Turnout change (pts of eligible voters)',-10,10,.5,S.to,v=>S.to=v));
- F.forEach((f,i)=>{$('cd').append(sl(f,0,100,1,S.d[i],v=>S.d[i]=v));$('cr').append(sl(f,0,100,1,S.r[i],v=>S.r[i]=v))});
+ $('nat').append(sl('National environment (− R / + D pts)',-15,15,.5,S.env,v=>setAll('env',v)),sl('Partisan lean strength (×)',.5,1.5,.05,S.lean,v=>setAll('lean',v)),sl('Candidate impact (pts per grade pt)',0,1,.05,S.imp,v=>setAll('imp',v)),sl('Turnout change (pts of eligible voters)',-10,10,.5,S.to,v=>setAll('to',v)));
+ if(OFFK!=='pres')$('nat').append(sl(ON[OFFK]+' only: extra shift (− R / + D pts)',-15,15,.5,S.osh,v=>S.osh=v));
+ if(OFFK!=='house')$('nat').append(...tpBox());gradeBox($('cd'),'Democratic',()=>S.dq,v=>S.dq=v);gradeBox($('cr'),'Republican',()=>S.rq,v=>S.rq=v);
  if(SCOPE==='state'&&SEL){
   const rl=document.createElement('label');rl.innerHTML='Race name (label only)<input type=text placeholder="e.g. 2026 Texas Senate">';const ri=rl.lastChild;ri.value=S.race;ri.oninput=()=>{S.race=ri.value;upd()};
   const rb=document.createElement('button');rb.textContent='Reset this state’s group adjustments';rb.style.marginTop='8px';rb.onclick=()=>{delete S.sa[SEL];buildSA();upd()};
   const hint=document.createElement('div');hint.className='hint';hint.textContent='Only '+SEL+' is simulated. The state environment and turnout apply to this state alone; adjust its group shares and margins in the state group adjustments card.';
-  $('stc').append(rl,sl('State environment (− R / + D pts)',-25,25,.5,S.st[SEL]||0,v=>S.st[SEL]=v),sl('Partisan lean strength (× around state average)',.5,1.5,.05,S.lean,v=>S.lean=v),sl('Candidate impact (pts per score pt)',0,1,.05,S.imp,v=>S.imp=v),sl('Turnout change (pts of eligible voters)',-15,15,.5,S.sto[SEL]||0,v=>{if(v)S.sto[SEL]=v;else delete S.sto[SEL]}),rb,hint)}
+  $('stc').append(rl,sl('State environment (− R / + D pts)',-25,25,.5,S.st[SEL]||0,v=>S.st[SEL]=v),sl('Partisan lean strength (× around state average)',.5,1.5,.05,S.lean,v=>setAll('lean',v)),sl('Candidate impact (pts per grade pt)',0,1,.05,S.imp,v=>setAll('imp',v)),sl('Turnout change (pts of eligible voters)',-15,15,.5,S.sto[SEL]||0,v=>{if(v)S.sto[SEL]=v;else delete S.sto[SEL]}),rb,hint,stateExtras())}
+ buildAP();
  buildDemo();
 }
 function buildDemo(){
@@ -267,6 +417,9 @@ function buildDemo(){
  PA.forEach((g,i)=>{const r=tp.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value="${(+S.ph[i]).toFixed(1)}"></td><td><input type=number step=1 value="${(+S.pm[i]).toFixed(0)}"></td>`;
   const[a,b]=r.querySelectorAll('input');
   a.oninput=()=>{S.ph[i]=+a.value||0;upd()};b.oninput=()=>{S.pm[i]=+b.value||0;upd()}});
+ for(const g of XG){const t=$('demo'+g.k.toUpperCase());t.innerHTML='<tr><th>Group</th><th>Electorate %</th><th>D margin</th></tr>';
+  g.names.forEach((n,i)=>{const r=t.insertRow();r.innerHTML=`<td>${n}</td><td><input type=number step=.5 style="width:56px" value="${(+S.xs[g.k][i]).toFixed(1)}"></td><td><input type=number step=1 style="width:56px" value="${(+S.xm[g.k][i]).toFixed(0)}"></td>`;
+   const[a,b]=r.querySelectorAll('input');a.oninput=()=>{S.xs[g.k][i]=+a.value||0;upd()};b.oninput=()=>{S.xm[g.k][i]=+b.value||0;upd()}})}
  buildSA();
 }
 // ---- per-state group adjustments (layered on the national numbers)
@@ -291,43 +444,156 @@ function refreshSA(){
  const L=Object.keys(S.sa).filter(k=>!saZero(S.sa[k])).sort();
  $('salist').innerHTML=L.length?'Adjusted: '+L.map(k=>`<button class="tag" data-st="${k}" style="cursor:pointer;margin:2px 3px 2px 0;background:${k===SEL?'#26324a':'transparent'};color:var(--t)">${k}</button>`).join(''):'';
 }
-function agg(list){const o={v:0,v0:0,d:0,r:0,x:0,b:0,cs:0,cn:0,s:[0,0,0,0,0],t:[0,0,0],p:[0,0,0],mh:{}},ac={};
+// ---- county adjustments (stack on top of the state / national values)
+const caOf=f=>S.ca[f]??={m:0,to:0,dm:[0,0,0,0,0],ds:[0,0,0,0,0],tm:[0,0,0],ts:[0,0,0],pm:[0,0,0],ps:[0,0,0]};
+const caZero=a=>!a||(!a.m&&!a.to&&[a.dm,a.ds,a.tm,a.ts,a.pm,a.ps].every(v=>v.every(x=>!x)));
+function effC(u,kind){const g=kind==='g',t=kind==='t',st=u.st,hasS=!!S.sa[st],e=g?effSA(st):t?effST(st):effSP(st),x=g?(u.s||DEF):t?(u.ty||DEFT):(u.pt||DEFP),a=S.ca[u.f],
+  ds=a?a[g?'ds':t?'ts':'ps']:null,dm=a?a[g?'dm':t?'tm':'pm']:null,sh=g?S.sh:t?S.th:S.ph,bs=g?BASE.sh:t?BASE.th:BASE.ph,mg0=g?S.mg:t?S.tm:S.pm,kN=sh.map((v,i)=>v/bs[i]),k=hasS?e.k:kN,mg=hasS?e.mg:mg0;
+ const raw=x.map((v,i)=>ds?Math.max(0,v*k[i]*100+ds[i]):v*k[i]),sd=d3.sum(raw)||1;return{sh:raw.map(v=>v/sd*100),mg:mg.map((m,i)=>m+(dm?dm[i]:0))}}
+function buildCA(){const card=$('cacard'),u=SELC&&C.get(SELC);card.style.display=u?'':'none';if(!u)return;
+ $('catitle').textContent='County adjustments · '+u.name+', '+u.st;
+ const box=$('cabox'),a0=S.ca[SELC]||{};box.innerHTML='';
+ const put=(k,v)=>{caOf(SELC)[k]=v;if(caZero(S.ca[SELC]))delete S.ca[SELC]};
+ box.append(sl('County margin shift (− R / + D pts)',-30,30,.5,a0.m||0,v=>put('m',v)),sl('County turnout change (pts of eligible voters)',-15,15,.5,a0.to||0,v=>put('to',v)));
+ for(const[id,names,kd,km,h]of[['catab',G,'ds','dm','Group'],['catabT',TY,'ts','tm','Community'],['catabP',PA,'ps','pm','Party']]){
+  const t=$(id);t.innerHTML=`<tr><th>${h}</th><th>Share Δ</th><th>Margin Δ</th><th>Result</th></tr>`;const a=S.ca[SELC];
+  names.forEach((g,i)=>{const r=t.insertRow();r.innerHTML=`<td>${g}</td><td><input type=number step=.5 value="${a?a[kd][i]:0}"></td><td><input type=number step=1 value="${a?a[km][i]:0}"></td><td class=cres></td>`;
+   const[x,y]=r.querySelectorAll('input'),p2=(k,v)=>{caOf(SELC)[k][i]=+v||0;if(caZero(S.ca[SELC]))delete S.ca[SELC];upd()};x.oninput=()=>p2(kd,x.value);y.oninput=()=>p2(km,y.value)})}
+ $('cahint').textContent='County changes stack on the national and state values, so a national move still carries into this county. Share Δ is points of this county’s electorate (renormalised to 100%); margin Δ moves the group toward D (+) or R (−).';
+ refreshCA()}
+function refreshCA(){const u=SELC&&C.get(SELC);if(!u)return;
+ $('cares').innerHTML=`<div class=hint style="margin:0 0 8px">${esc(BASEL)} <b class="${u.m0>0?'D':'R'}">${fmt(u.m0)}</b> → simulated <b class="${u.m>0?'D':'R'}">${fmt(u.m)}</b> · ${n0(u.vs)} votes${u.act===false?' · no race here this cycle':''}</div>`;
+ for(const[id,k]of[['#catab','g'],['#catabT','t'],['#catabP','p']]){const e=effC(u,k);document.querySelectorAll(id+' .cres').forEach((c,i)=>c.innerHTML=`${e.sh[i].toFixed(1)}% · <span class="${e.mg[i]>0?'D':'R'}">${fmt(e.mg[i])}</span>`)}}
+// ---- office plumbing: S / C / ST / BASE always point at the office being viewed; every office is simulated on each update
+function useOff(o){OFFK=o;if(OS[o])S=OS[o];BASE=BASEO[o]||BASE;const O=OF[o];if(O){C=O.C;ST=O.ST;SMEAN=O.SMEAN;NAT=O.NAT}}
+function offInfo(){const el=$('offinfo'),pkr=$('seatpick'),y=BASEY,sv=SV[y],yr=sv?(sv.yr||2024):y;spPanel();
+ if(OFFK==='pres'){pkr.style.display='none';el.textContent=sv||isPresY(y)?'':`No presidential election in ${BASEL}; this tab shows the ${pyOf(y)} presidential result that the Senate and governor seats are built from.`;return}
+ if(OFFK==='house'){const O=OF.house,n=O.real.size;pkr.style.display='none';
+  el.textContent=n?`All House seats are up in ${BASEL}. There is no district map or district data here, so each state’s seats are estimated from its House margin with a seats-votes curve${HD0?', calibrated to the real 2024 delegations':' (no real delegations are built in for this year, so it assumes no gerrymandering bias)'}. ${O.src==='est'?'The House vote starts from each state’s presidential lean, shifted so the national House vote matches the real national result for the year. ':''}District lines for 2026 mid-decade redistricting are not modeled. DC (non-voting delegate) is greyed out.`:`No House elections in ${BASEL} (odd year). Pick an even year, or select a state and tick “Hold a hypothetical race”.`;return}
+ const O=OF[OFFK],n=O.real.size,nm=ON[OFFK].toLowerCase(),sen=OFFK==='sen',sel=SEATSEL[OFFK],cls=sel||(sen?senCls(yr):govCls(yr)),opts=sen?SCN:GCN;
+ pkr.style.display='';
+ $('seatsel').innerHTML=`<option value="">Auto${O.src==='saved'?' (as saved)':' ('+(cls?(sen?'Class '+cls:opts[cls]):'none this year')+')'}</option>`+Object.keys(opts).map(k=>`<option value="${k}">${opts[k]}</option>`).join('');$('seatsel').value=sel||'';
+ el.textContent=n?(O.src==='est'?`${n} ${nm} seats are up in this cycle. No certified ${nm} results are built in for ${BASEL}, so each starts from its state’s presidential lean plus that state’s usual ${nm}-vs-president gap (an estimate). `:`${n} real ${nm} races ${O.src==='saved'?'in the saved election':'in this cycle'}. `)+`Other states are greyed out. County results are the presidential counties shifted so each state matches its ${nm} margin. “Seats up” jumps to another cycle, for example to bring a saved class up again and see the flips. Select a greyed state and tick “Hold a hypothetical race” to add one, or use “Special elections” below to call a special election, switch a state between its regular and special race, or remove a race.`:`No ${nm} seats are up in ${BASEL}. Pick a “Seats up” cycle above, or select a state and tick “Hold a hypothetical race”.`}
+// ---- special elections panel (Senate / Governor): call a special in any state, switch a state between its regular and special race, remove any race.
+function spChange(){setBase(BASEY);SELC='';calc();offInfo();build();if(paths)selState();else upd()}
+function spPanel(){const el=$('sppanel');if(!el)return;if(OFFK!=='sen'&&OFFK!=='gov'||!OF[OFFK]){el.style.display='none';return}
+ const O=OF[OFFK],Sx=OS[OFFK],sen=OFFK==='sen',saved=O.src==='saved',kind=O.kind||{},spc=O.spc||new Set(),reg=O.reg||new Set(),spE=O.spE||new Set(),spB=O.spB||new Set(),nm=sen?'Senate':'governor',
+  states=NM.filter(n=>n!=='District of Columbia'),live=s=>O.real.has(s);
+ el.style.display='';
+ let h=`<div class=sub style="margin:0 0 6px">Special elections · ${nm}</div>`;
+ const rows=[...spc].filter(s=>!Sx.ns[s]).sort();
+ for(const s of rows){const hr=reg.has(s)&&!Sx.nr[s]&&!saved,k=kind[s]||(hr?'reg':'spec');
+  h+=`<div class=row style="margin:3px 0"><b style="color:var(--t);min-width:90px">${esc(s)}</b>`+
+   (hr?`<span class=tabs style="margin:0"><button data-sw="${esc(s)}" data-v=reg${k==='reg'?' class=on':''}>Regular</button><button data-sw="${esc(s)}" data-v=spec${k==='spec'?' class=on':''}>Special</button></span>`:`<span>${k==='spec'?'special election':'regular race'}${k==='spec'&&spE.has(s)?' · estimated baseline':''}</span>`)+
+   `<button data-rm="${esc(s)}" data-kind=spec>Remove special</button></div>`}
+ if(!rows.length)h+=`<div class=hint style="margin:0 0 6px">No special elections in ${esc(BASEL)}. Call one below.</div>`;
+ const addOpts=states.filter(s=>!(spc.has(s)&&!Sx.ns[s])&&!(saved&&live(s))).map(s=>`<option value="${esc(s)}">${esc(s)}${live(s)?' (also has a regular race)':''}</option>`).join('');
+ h+=`<div class=row style="margin:8px 0 3px"><select id=spadd><option value="">Call a special election in…</option>${addOpts}</select><button id=spaddb>Add</button></div>`;
+ const rmOpts=[...O.real].sort().map(s=>`<option value="${esc(s)}">${esc(s)} (${(kind[s]||'reg')==='spec'?'special':'regular'})</option>`).join('');
+ h+=`<div class=row style="margin:3px 0"><select id=sprm><option value="">Remove a race in…</option>${rmOpts}</select><button id=sprmb>Remove</button></div>`;
+ const gone=[...Object.keys(Sx.ns).filter(s=>Sx.ns[s]).map(s=>[s,'ns','special']),...Object.keys(Sx.nr).filter(s=>Sx.nr[s]).map(s=>[s,'nr','regular'])];
+ if(gone.length)h+=`<div class=hint style="margin:6px 0 0">Removed: ${gone.map(([s,k,l])=>`${esc(s)} ${l} <button data-rs="${esc(s)}" data-k=${k} style="padding:1px 7px">Restore</button>`).join(' · ')}</div>`;
+ h+=`<div class=hint>${sen?'A state with two Senate seats on the ballot (like Georgia in 2020) shows a Regular / Special switch; the map shows the one you pick, and chamber control counts both seats. ':''}A special you call starts from the state’s presidential margin plus its usual ${nm}-vs-president gap (an estimate); built-in specials use their real results.</div>`;
+ el.innerHTML=h;
+ const rmRace=s=>{const k=kind[s]||'reg';if(k==='spec'){delete Sx.sp[s];if(spB.has(s))Sx.ns[s]=true}else Sx.nr[s]=true;delete Sx.sw[s];spChange()};
+ el.querySelectorAll('[data-sw]').forEach(b=>b.onclick=()=>{Sx.sw[b.dataset.sw]=b.dataset.v;spChange()});
+ el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>rmRace(b.dataset.rm));
+ el.querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>{delete Sx[b.dataset.k][b.dataset.rs];spChange()});
+ $('spaddb').onclick=()=>{const s=$('spadd').value;if(!s)return;delete Sx.ns[s];if(!spB.has(s))Sx.sp[s]=true;if(!saved&&reg.has(s)&&!Sx.nr[s])Sx.sw[s]='spec';spChange()};
+ $('sprmb').onclick=()=>{const s=$('sprm').value;if(s)rmRace(s)}}
+function setOff(o){useOff(o);SELC='';document.querySelectorAll('#offtabs button').forEach(b=>b.classList.toggle('on',b.dataset.o===o));
+ $('dn').value=S.dn;$('rn').value=S.rn;$('cmp').disabled=o!=='pres';offInfo();build();if(paths)selState();else upd()}
+function offEv(g,dn,rn,dw){const A=Object.entries(ST).filter(([s,o])=>s!=='US'&&o.act),D=A.filter(([,o])=>o.m>0).length,R2=A.length-D,fl=A.filter(([,o])=>(o.m>0)!==(o.b>0)),nm=ON[OFFK].toLowerCase();
+ if(!SEL){const fd=fl.filter(([,o])=>o.m>0).map(([s])=>s),fr=fl.filter(([,o])=>o.m<=0).map(([s])=>s),n=A.length||1;
+  return `<div style="font:600 28px Georgia,serif"><span class=D>${D}</span> – <span class=R>${R2}</span> <small style="font:12px system-ui;color:var(--m)">${nm} races won · ${A.length} held</small></div><div class=bar><div style="width:${D/n*100}%;background:var(--d)"></div><div style="width:${R2/n*100}%;background:var(--r)"></div></div><div class=hint>${fd.length?`<b class=D>Democratic gains:</b> ${fd.join(', ')}. `:''}${fr.length?`<b class=R>Republican gains:</b> ${fr.join(', ')}. `:''}${fl.length?'':'No flips vs '+esc(BASEL)+'.'}</div>${OFFK==='sen'?ctlHtml():''}${rnTxt()}`}
+ const o=ST[SEL],real=OF[OFFK].real.has(SEL);
+ return `<small style="color:var(--m)">${o&&o.act?(real?((OF[OFFK].kind||{})[SEL]==='spec'?'Special election this cycle'+(OF[OFFK].spE&&OF[OFFK].spE.has(SEL)?' (estimated baseline)':''):OF[OFFK].src==='est'?'Seat up this cycle (estimated baseline)':'Real '+nm+' race this cycle'):'Hypothetical '+nm+' race (added by you)'):'No '+nm+' race here this cycle'} → <b class="${dw?'D':'R'}">${dw?dn:rn}</b></small><br>`}
+// ---- Senate control. Seats not up keep the party that holds them in the 119th Congress (Jan 2025). Seats held by Democrats, by class (independents King and Sanders count as D); every other seat is R. 47 D / 53 R.
+const SDH={1:'AZ,CA,CT,DE,HI,ME,MD,MA,MI,MN,NV,NJ,NM,NY,RI,VT,VA,WA,WI',2:'CO,DE,GA,IL,MA,MI,MN,NH,NJ,NM,OR,RI,VA',3:'AZ,CA,CO,CT,GA,HI,IL,MD,NV,NH,NY,OR,PA,VT,WA'},SDS={},SAS={};
+for(const c of[1,2,3]){SDS[c]=new Set(SDH[c].split(','));SAS[c]=new Set(SC[c])}
+// Which seat a race fills: the regular race is the cycle's class; a special fills the state's seat in the class that comes up next (OH/FL 2026 -> class 3). A state with a regular AND a special race counts both seats.
+function senCtl(){const O=OF.sen,Sx=OS.sen,sv=SV[BASEY],yr=sv?(sv.yr||2024):BASEY;
+ if(!O||typeof yr!=='number'||yr<2024)return null;
+ const c0=SEATSEL.sen?+SEATSEL.sen:senCls(yr),nx=c0?c0%3+1:3,has=(a,c)=>SAS[c].has(a),
+  pick=(a,p,av)=>p&&has(a,p)?p:[1,2,3].find(k=>has(a,k)&&k!==av)||[1,2,3].find(k=>has(a,k)),up=new Set(),ms=[],
+  add=(a,c,m)=>{const k=a+c;if(up.has(k))return;up.add(k);ms.push(m)};
+ for(const[q,o]of Object.entries(O.ST)){if(q==='US'||!o.act||q==='District of Columbia')continue;
+  const a=abbr(q),sp=(O.kind||{})[q]==='spec';add(a,sp?pick(a,nx,c0):pick(a,c0,null),o.m);
+  if(O.alt&&O.alt[q]!=null&&O.src!=='saved')add(a,sp?pick(a,c0,null):pick(a,nx,c0),O.alt[q]+(o.m-o.b))}
+ let hD=0,hR=0;for(const c of[1,2,3])for(const a of SAS[c])if(!up.has(a+c))SDS[c].has(a)?hD++:hR++;
+ const uD=ms.filter(m=>m>0).length;return{hD,hR,uD,uR:ms.length-uD,ms,n:ms.length,vp:Sx.inc}}
+function ctlHtml(){const t=senCtl();
+ if(!t)return'<div class=hint>Chamber control uses the seat table for the 119th Congress (Jan 2025), so it shows when you start from 2024 or later.</div>';
+ const D=t.hD+t.uD,R=t.hR+t.uR,w=D>50?'D':R>50?'R':(t.vp==='D'||t.vp==='R')?t.vp:null;
+ return `<div style="font:600 28px Georgia,serif;margin-top:12px"><span class=D>${D}</span> – <span class=R>${R}</span> <small style="font:12px system-ui;color:var(--m)">Senate seats · 51 for a majority</small></div><div class=bar><div style="width:${D}%;background:var(--d)"></div><div style="width:${R}%;background:var(--r)"></div></div><div class=hint>${w?`<b class=${w}>${esc(w==='D'?$('dn').value:$('rn').value)} control the Senate</b>${D===50?' (50–50: the vice president, from the president’s party, breaks the tie)':''}`:'<b>50–50 with no vice-presidential tiebreak (no president’s party set)</b>'}. Not up this cycle: <span class=D>D ${t.hD}</span> – <span class=R>R ${t.hR}</span>. The ${t.n} races being held: <span class=D>D ${t.uD}</span> – <span class=R>R ${t.uR}</span>. Holdover seats keep their January 2025 party.</div>`}
+// ---- Maine / Nebraska electors by congressional district, rebuilt from county results (approximate: Kennebec split 50/50, NE-2 = Douglas + Sarpy; unlisted counties go to the last district)
+const CDL={Maine:{'ME-1':['23005','23013','23015','23023','23031','23011:.5'],'ME-2':['23001','23003','23007','23009','23017','23019','23021','23025','23027','23029','23011:.5']},
+ Nebraska:{'NE-1':['31109','31025','31155','31131','31097','31127','31133','31147','31067','31159','31023','31151'],'NE-2':['31055','31153'],'NE-3':[]}},CDM={};
+for(const s in CDL){const m=CDM[s]=new Map();for(const d in CDL[s])for(const x of CDL[s][d]){const[f,w]=x.split(':');if(!m.has(f))m.set(f,[]);m.get(f).push([d,w?+w:1])}}
+const cdOf=(s,f)=>CDM[s].get(f)||[[Object.keys(CDL[s]).pop(),1]];
+function evUnits(O2){const T=O2?O2.ST:ST,CC=O2?O2.C:C,u=[],ok=$('evsplit').checked&&COUNTYOK;
+ for(const s in T){if(s==='US')continue;const ev=EV[s]||0;
+  if(!ok||!CDL[s]){u.push({s,m:T[s].m,e:ev});continue}
+  const ds=Object.keys(CDL[s]),a={};for(const d of ds)a[d]={v:0,x:0};
+  for(const c of CC.values()){if(c.st!==s)continue;for(const[d,w]of cdOf(s,c.f)){a[d].v+=c.vs*w;a[d].x+=c.vs*w*c.m}}
+  u.push({s,m:T[s].m,e:ev-ds.length});for(const d of ds)u.push({s,d,m:a[d].v?a[d].x/a[d].v:T[s].m,e:1})}
+ return u}
+const cdLine=U=>{const ds=U.filter(u=>u.d);return ds.length?'<div class=hint>'+ds.map(u=>`${u.d} <b class="${u.m>0?'D':'R'}">${fmt(u.m)}</b>`).join(' · ')+' (district estimates)</div>':''};
+function tieTxt(){const T=OF.house&&OF.house.ST;if(!T||!Object.values(T).some(o=>o.act))return'<div class=hint><b>269–269 tie.</b> The House would pick the president by state delegation (26 states needed). No House seats are simulated for this year.</div>';
+ let d=0,r=0,x=0;for(const k in T){if(k==='US'||!T[k].act)continue;const h=hseats(k,T[k].m,T);if(!h.N)continue;const n=Math.round(h.d);n*2>h.N?d++:n*2<h.N?r++:x++}
+ return `<div class=hint><b>269–269 tie.</b> The House picks by state delegation (26 states needed). Simulated delegations: <b class=D>${d}</b> D · <b class=R>${r}</b> R · ${x} split.</div>`}
+// ---- third parties and vote rules: runoff (Georgia's 50% rule, Louisiana governor) or ranked-choice (Maine, Alaska); per-state override in the state card
+const VR_DEF={sen:{Georgia:'run',Alaska:'rcv',Maine:'rcv'},gov:{Georgia:'run',Louisiana:'run',Alaska:'rcv'},pres:{Maine:'rcv',Alaska:'rcv'}},VRN={plur:'Plurality',run:'Majority runoff',rcv:'Ranked-choice'};
+const ruleOf=(off,s,Sx)=>(Sx.vr&&Sx.vr[s])||(VR_DEF[off]&&VR_DEF[off][s])||'plur';
+function tpBox(){return[sl('Third-party / independent vote (extra pts of the vote)',0,20,.5,S.tp||0,v=>S.tp=v),sl('Third-party voters’ 2nd choice → D (%, runoff / ranked-choice)',0,100,1,S.rf??50,v=>S.rf=v),sl('Runoff electorate shift (− R / + D pts, runoffs only)',-10,10,.5,S.rs||0,v=>S.rs=v)]}
+const rnTxt=()=>{const a=Object.entries(ST).filter(([s,o])=>s!=='US'&&o.rn);return a.length?'<div class=hint>'+a.map(([s,o])=>`<b>${abbr(s)}</b> ${o.rn.k==='run'?'goes to a runoff':'needs ranked-choice rounds'} (first round <span class=D>D ${(o.rn.r[0]*100).toFixed(1)}</span> · <span class=R>R ${(o.rn.r[1]*100).toFixed(1)}</span> · other ${(o.rn.r[2]*100).toFixed(1)}) → ${fmt(o.m)}`).join('<br>')+'</div>':''};
+function cutX(c,Sx,Bx){if(!Sx.xs||!Bx.xs)return 0;let t=0;for(const g of XG){const x=c[g.f]||DEFX[g.k],bs=Bx.xs[g.k],ss=Sx.xs[g.k];t+=cut(x,ss.map((v,i)=>v/bs[i]),Sx.xm[g.k],null,null,Bx.xm[g.k])}return t}
+function agg(list){const o={v:0,v0:0,d:0,r:0,x:0,b:0,cs:0,cn:0,s:[0,0,0,0,0],t:[0,0,0],p:[0,0,0],a:[0,0,0,0],e:[0,0],mh:{}},ac={};
  for(const c of list){o.v+=c.vs;o.v0+=c.v;o.d+=c.vs*c.pdS;o.r+=c.vs*c.prS;o.x+=c.vs*c.m;o.b+=c.v*c.m0;
   if(c.cvap){o.cs+=c.cvap;o.cn++}
   if(c.mh)for(const y in c.mh)if(c.mh[y]!=null){const a=ac[y]??=[0,0];a[0]+=c.v*c.mh[y];a[1]+=c.v}
-  const s=c.s||DEF,ty=c.ty||DEFT;for(let i=0;i<5;i++)o.s[i]+=c.vs*s[i];for(let i=0;i<3;i++)o.t[i]+=c.vs*ty[i];const pt=c.pt||DEFP;for(let i=0;i<3;i++)o.p[i]+=c.vs*pt[i]}
+  const s=c.s||DEF,ty=c.ty||DEFT;for(let i=0;i<5;i++)o.s[i]+=c.vs*s[i];for(let i=0;i<3;i++)o.t[i]+=c.vs*ty[i];const pt=c.pt||DEFP;for(let i=0;i<3;i++)o.p[i]+=c.vs*pt[i];const xa=c.ag||DEFX.a,xe=c.ed||DEFX.e;for(let i=0;i<4;i++)o.a[i]+=c.vs*xa[i];for(let i=0;i<2;i++)o.e[i]+=c.vs*xe[i]}
  o.m=o.x/o.v;o.b/=o.v0;for(const y in ac)o.mh[y]=ac[y][0]/ac[y][1];o.cv=o.cn===list.length?o.cs:null;return o}
-function calc(){
- const SC=SCOPE==='state',kN=S.sh.map((s,i)=>s/BASE.sh[i]),kT=S.th.map((s,i)=>s/BASE.th[i]),kP=S.ph.map((s,i)=>s/BASE.ph[i]),edge=(d3.mean(S.d)-d3.mean(S.r))*S.imp,by={},kS={};
- for(const st in S.sa){const e=effSA(st),t=effST(st);const p=effSP(st);kS[st]={k:e.k,mg:e.mg,kt:t.k,mt:t.mg,kp:p.k,mp:p.mg}}
- for(const c of C.values()){const s=c.s||DEF,ks=kS[c.st],k=ks?ks.k:kN,mg=ks?ks.mg:S.mg;let b=0,a=0,w=0;
-  s.forEach((x,i)=>{b+=x*BASE.mg[i];a+=x*k[i]*mg[i];w+=x*k[i]});
-  let tb=0,ta=0,tw=0;{const ty=c.ty||DEFT,kt=ks?ks.kt:kT,mt=ks?ks.mt:S.tm;ty.forEach((x,i)=>{tb+=x*BASE.tm[i];ta+=x*kt[i]*mt[i];tw+=x*kt[i]})}
-  let pb=0,pa=0,pw=0;{const pt=c.pt||DEFP,kp=ks?ks.kp:kP,mp=ks?ks.mp:S.pm;pt.forEach((x,i)=>{pb+=x*BASE.pm[i];pa+=x*kp[i]*mp[i];pw+=x*kp[i]})}
-  const ref=SC?(SMEAN[c.st]??NAT):NAT,to=SC?(S.sto[c.st]||0):(S.sto[c.st]??S.to);
-  c.m=ref+(c.m0-ref)*S.lean+(w?a/w:0)-b+(tw?ta/tw:0)-tb+(pw?pa/pw:0)-pb+(SC?0:S.env)+edge+(S.st[c.st]||0);
+function calc(){for(const o of OFFS)if(OF[o]&&OF[o].C.size)calcOff(o);useOff(OFFK)}
+function cut(x,k,mg,ds,dm,bm){let b=0,a=0,w=0;for(let i=0;i<x.length;i++){b+=x[i]*bm[i];const r=ds?Math.max(0,x[i]*k[i]*100+ds[i]):x[i]*k[i],m=dm?mg[i]+dm[i]:mg[i];a+=r*m;w+=r}return(w?a/w:0)-b}
+function calcOff(off){
+ const apc={},apf=st=>apc[st]??=apState(off,st).adj;
+ const O=OF[off],Sx=OS[off],Bx=BASEO[off],SC=SCOPE==='state',kN=Sx.sh.map((s,i)=>s/Bx.sh[i]),kT=Sx.th.map((s,i)=>s/Bx.th[i]),kP=Sx.ph.map((s,i)=>s/Bx.ph[i]),by={},kS={};
+ for(const st in Sx.sa){const e=effSA(st,Sx,Bx),t=effST(st,Sx,Bx),p=effSP(st,Sx,Bx);kS[st]={k:e.k,mg:e.mg,kt:t.k,mt:t.mg,kp:p.k,mp:p.mg}}
+ for(const c of O.C.values()){
+  const ks=kS[c.st],ca=Sx.ca[c.f],q=Sx.cq[c.st],edge=((q?q[0]:Sx.dq)-(q?q[1]:Sx.rq))*Sx.imp;
+  c.act=off==='pres'||O.real.has(c.st)||!!Sx.hold[c.st];
+  const k=ks?ks.k:kN,mg=ks?ks.mg:Sx.mg,kt=ks?ks.kt:kT,mt=ks?ks.mt:Sx.tm,kp=ks?ks.kp:kP,mp=ks?ks.mp:Sx.pm;
+  const ref=SC?(O.SMEAN[c.st]??O.NAT):O.NAT,to=(SC?(Sx.sto[c.st]||0):(Sx.sto[c.st]??Sx.to))+(ca?ca.to:0);
+  c.m=ref+(c.m0-ref)*Sx.lean+cut(c.s||DEF,k,mg,ca&&ca.ds,ca&&ca.dm,Bx.mg)+cut(c.ty||DEFT,kt,mt,ca&&ca.ts,ca&&ca.tm,Bx.tm)+cut(c.pt||DEFP,kp,mp,ca&&ca.ps,ca&&ca.pm,Bx.pm)+cutX(c,Sx,Bx)+(SC?0:Sx.env+Sx.osh)+edge+(Sx.st[c.st]||0)+apf(c.st)+(ca?ca.m:0);
   const dm=(c.m-c.m0)/100;c.pdS=c.pd+dm/2;c.prS=c.pr-dm/2;
+  const tp=(Sx.tp||0)/100;if(tp>0){const s0=c.pdS+c.prS,f=Math.max(.2,(s0-tp)/s0);c.pdS*=f;c.prS*=f;c.m*=f}
   c.vs=c.v*(1+to/100/(c.cvap?Math.min(.95,c.v/c.cvap):.6));(by[c.st]??=[]).push(c)}
- ST={};for(const s in by)ST[s]=agg(by[s]);ST.US=agg([...C.values()]);
-}
-const flip=(c,b)=>b!=null&&(c.m>0)!==(b>0);
-const UV=d=>{if(LEVEL==='counties')return C.get(d.id);const n=SN[d.id],o=ST[n];return o&&{m:o.m,m0:o.b,mh:{...MT[n],...o.mh},vs:o.v,cvap:o.cv,pdS:o.d/o.v,prS:o.r/o.v,name:n,st:n}};
+ const T={};for(const s in by){T[s]=agg(by[s]);T[s].act=by[s][0].act;const rl=ruleOf(off,s,Sx);
+  if(rl&&rl!=='plur'&&T[s].act){const t=T[s],pD=t.d/t.v,pR=t.r/t.v;
+   if(pD<=.5&&pR<=.5){const rf=(Sx.rf??50)/100,sh=rl==='run'?(Sx.rs||0):0;
+    for(const c of by[s]){const o=Math.max(0,1-c.pdS-c.prS);c.m+=o*(2*rf-1)*100+sh;c.pdS=Math.max(0,c.pdS+o*rf+sh/200);c.prS=Math.max(0,c.prS+o*(1-rf)-sh/200)}
+    T[s]=agg(by[s]);T[s].act=true;T[s].rn={k:rl,r:[pD,pR,Math.max(0,1-pD-pR)]}}}}
+ const al=[...O.C.values()].filter(c=>c.act);T.US=agg(al.length?al:[...O.C.values()]);T.US.act=al.length>0;O.ST=T}
+const flip=(c,b)=>b!=null&&c.act!==false&&(c.m>0)!==(b>0);
+const UV=d=>{if(LEVEL==='counties')return C.get(d.id);const n=SN[d.id],o=ST[n];return o&&{m:o.m,m0:o.b,mh:{...MT[n],...o.mh},vs:o.v,cvap:o.cv,pdS:o.d/o.v,prS:o.r/o.v,name:n,st:n,act:o.act}};
 function paint(){
- const Bm=c=>c.mh?c.mh[CMPY]:null,st=LEVEL==='states',P=st?sp:paths,SC=SCOPE==='state',inSel=id=>!SC||SN[id.slice(0,2)]===SEL;
+ const Bm=c=>OFFK==='pres'?(c.mh?c.mh[CMPY]:null):c.m0,st=LEVEL==='states',P=st?sp:paths,SC=SCOPE==='state',inSel=id=>!SC||SN[id.slice(0,2)]===SEL;
  d3.select('#z').style('display',st?'none':null);d3.select('#zs').style('display',st?null:'none');d3.select('#mesh').style('display',SC?'none':null).attr('stroke',MODE==='lead'?'#5b6f8f':'#0a121f');
  const sfo=SEL&&sf.find(f=>f.properties.name===SEL);d3.select('#outl').attr('d',SC&&sfo?pth(sfo):'');
  P.style('display',d=>inSel(d.id)?null:'none')
   .attr('fill',d=>{const c=UV(d);
   if(!c){const g=ST[SN[d.id.slice(0,2)]];return g&&MODE==='margin'?binCol(g.m):NA}
+  if(c.act===false)return NA;
   const b=Bm(c);
   switch(MODE){case'margin':return binCol(c.m);case'turnout':return c.cvap?tu(c.vs/c.cvap):NA;
    case'swing':return b==null?NA:sw(c.m-b);case'lead':return NA;
    case'vsstate':return st||!ST[c.st]?NA:vss(c.m-ST[c.st].m);
    case'flips':return b==null?NA:c.m>0?(b>0?'#a9cdea':'#1b5fa6'):(b>0?'#a61e34':'#f2a8b3')}})
-  .attr('stroke',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?'#d9a400':MODE==='lead'?'#3d4f6b':'#0a121f'})
-  .attr('stroke-width',d=>{const c=UV(d);return MODE==='flips'&&c&&flip(c,Bm(c))?.9:st?.6:.3})
+  .attr('stroke',d=>{const c=UV(d);return d.id===SELC?'#ffffff':MODE==='flips'&&c&&flip(c,Bm(c))?'#d9a400':MODE==='lead'?'#3d4f6b':'#0a121f'})
+  .attr('stroke-width',d=>{const c=UV(d);return d.id===SELC?1.6:MODE==='flips'&&c&&flip(c,Bm(c))?.9:st?.6:.3})
   .attr('opacity',d=>!SEL||SN[d.id.slice(0,2)]===SEL?1:.3);
- const L={turnout:['linear-gradient(90deg,#f2f0f7,#54278f)','35% → 85% of eligible voters'],swing:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R shift ← → D shift (±15)'],vsstate:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Redder/bluer than own state'],flips:['linear-gradient(90deg,#f2a8b3,#a61e34,#1b5fa6,#a9cdea)','Gold outline = flipped vs '+lbl(CMPY)+' (strong colors)']}[MODE];
+ const L={turnout:['linear-gradient(90deg,#f2f0f7,#54278f)','35% → 85% of eligible voters'],swing:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','R shift ← → D shift (±15)'],vsstate:['linear-gradient(90deg,#b2182b,#f7f7f7,#2166ac)','Redder/bluer than own state'],flips:['linear-gradient(90deg,#f2a8b3,#a61e34,#1b5fa6,#a9cdea)','Gold outline = flipped vs '+(OFFK==='pres'?lbl(CMPY):'the baseline')+' (strong colors)']}[MODE];
  const binMode=MODE==='margin'||MODE==='lead';
  $('leg').style.display=$('legt').style.display=binMode?'none':'';
  if(L){$('leg').style.background=L[0];$('legt').textContent=L[1]}
@@ -366,18 +632,19 @@ function overlay(){
 }
 function panels(){
  const SC=SCOPE==='state',dn=$('dn').value,rn=$('rn').value,g=ST[SEL||'US'];if(!g)return;
- const name=SEL||'United States',tot=g.v,mg=(g.d-g.r)/tot*100,dw=g.d>g.r,hold=(g.b>0)===dw,ot=tot-g.d-g.r,race=esc(SC?(S.race||'President'):($('sname').value.trim()||'President'));
+ const name=SEL||'United States',tot=g.v,mg=(g.d-g.r)/tot*100,dw=g.d>g.r,hold=(g.b>0)===dw,ot=tot-g.d-g.r,race=esc(SC?(S.race||ON[OFFK]):($('sname').value.trim()||ON[OFFK]));
  const row=(nm,v,c,w)=>`<div class=cand><span class=${c}>${nm}${w?' ✓':''}</span><b class=${c}>${(v/tot*100).toFixed(2)}%</b><small>${n0(v)} votes</small></div>`;
- let ev='';if(!SEL){let D=0,R=0;for(const s in ST)if(s!=='US')(ST[s].m>0?D+=EV[s]||0:R+=EV[s]||0);
-  ev=`<div style="font:600 28px Georgia,serif"><span class=D>${D}</span> – <span class=R>${R}</span> <small style="font:12px system-ui;color:var(--m)">electoral votes (winner-take-all; ME/NE splits not modeled)</small></div><div class=bar><div style="width:${D/5.38}%;background:var(--d)"></div><div style="width:${R/5.38}%;background:var(--r)"></div></div>`}
+ let ev='';if(OFFK==='house')ev=houseEv(g,dn,rn,dw);else if(OFFK!=='pres')ev=offEv(g,dn,rn,dw);else if(!SEL){const U=evUnits();let D=0,R=0;for(const u of U)(u.m>0?D+=u.e:R+=u.e);const spl=U.some(u=>u.d);
+  ev=`<div style="font:600 28px Georgia,serif"><span class=D>${D}</span> – <span class=R>${R}</span> <small style="font:12px system-ui;color:var(--m)">${spl?'electoral votes (Maine and Nebraska split by district)':'electoral votes (winner-take-all)'}</small></div><div class=bar><div style="width:${D/5.38}%;background:var(--d)"></div><div style="width:${R/5.38}%;background:var(--r)"></div></div>${cdLine(U)}${D===269&&R===269?tieTxt():''}${rnTxt()}`}
  else if(SC)ev=`<small style="color:var(--m)">Individual-state simulation · starting from ${esc(BASEL)} ${SV[BASEY]?'saved results':'presidential results'}</small><br>`;
- else ev=`<small style="color:var(--m)">${EV[SEL]||''} electoral votes → <b class="${dw?'D':'R'}">${dw?dn:rn}</b></small><br>`;
+ else ev=`<small style="color:var(--m)">${EV[SEL]||''} electoral votes → <b class="${dw?'D':'R'}">${dw?dn:rn}</b></small><br>${cdLine(evUnits().filter(u=>u.s===SEL))}`;
  $('rr').innerHTML=`<div class=sub>${name} · ${race} · simulated</div><h2 style="font:600 26px Georgia,serif;color:var(--t);letter-spacing:0;text-transform:none;margin:4px 0">Race results</h2>${row(dn,g.d,'D',dw)}${row(rn,g.r,'R',!dw)}${ot>1?`<div class=cand><span>Other</span><b style="font-size:16px">${(ot/tot*100).toFixed(2)}%</b><small>${n0(ot)} votes</small></div>`:''}<span class=tag>${dw?'Democratic':'Republican'} ${hold?'hold':'gain'} vs ${esc(BASEL)}</span><p style="color:var(--m);margin:8px 0">${n0(tot)} votes · ${fmt(mg)} points · ${esc(BASEL)}: ${fmt(g.b)}</p>${ev}`;
+ if(OFFK!=='pres'&&SEL&&!g.act)$('rr').innerHTML=`<div class=sub>${name} · ${ON[OFFK]}</div><h2 style="font:600 26px Georgia,serif;color:var(--t);letter-spacing:0;text-transform:none;margin:4px 0">No race</h2><p style="color:var(--m)">There is no ${ON[OFFK].toLowerCase()} race in ${name} in this cycle. Tick “Hold a hypothetical race” in the state card to simulate one from the presidential result.</p>`;
  if(SC){$('ctitle').textContent=COUNTYOK?'Largest counties in '+SEL:'State summary';
-  $('close').innerHTML=[...C.values()].filter(c=>c.st===SEL).sort((a,b)=>b.vs-a.vs).slice(0,10).map(c=>`<tr><td>${c.name}</td><td class="${c.m>0?'D':'R'}">${fmt(c.m)}</td><td>${n0(c.vs)}</td></tr>`).join('')}
- else{$('ctitle').textContent='Closest states';
-  $('close').innerHTML=Object.entries(ST).filter(([s])=>s!=='US').sort((a,b)=>Math.abs(a[1].m)-Math.abs(b[1].m)).slice(0,10).map(([s,o])=>`<tr><td>${s}</td><td class="${o.m>0?'D':'R'}">${fmt(o.m)}</td><td>${EV[s]||''} EV</td></tr>`).join('')}
- for(const[id,x]of[['gdD',S.d],['gdR',S.r]]){const m=d3.mean(x);$(id).textContent=gr(m)+' · '+m.toFixed(1)}
+  $('close').innerHTML=[...C.values()].filter(c=>c.st===SEL).sort((a,b)=>b.vs-a.vs).slice(0,10).map(c=>`<tr data-f="${c.f}" style="cursor:pointer"><td>${c.name}</td><td class="${c.m>0?'D':'R'}">${fmt(c.m)}</td><td>${n0(c.vs)}</td></tr>`).join('')}
+ else{$('ctitle').textContent=OFFK==='pres'?'Closest states':'Closest '+ON[OFFK].toLowerCase()+' races';
+  $('close').innerHTML=Object.entries(ST).filter(([s,o])=>s!=='US'&&(OFFK==='pres'||o.act)).sort((a,b)=>Math.abs(a[1].m)-Math.abs(b[1].m)).slice(0,10).map(([s,o])=>`<tr><td>${s}</td><td class="${o.m>0?'D':'R'}">${fmt(o.m)}</td><td>${OFFK==='pres'?(EV[s]||'')+' EV':OFFK==='house'?hCell(s,o):((o.m>0)!==(o.b>0)?'flip':'hold')}</td></tr>`).join('')}
+ $('gdD').textContent=gr(S.dq)+' · '+S.dq;$('gdR').textContent=gr(S.rq)+' · '+S.rq;
  let shr,mgs;
  if(SEL){const e=effSA(SEL);shr=e.sh.map(x=>x/100);mgs=e.mg}
  else{const us=ST.US,rel=g.s.map((x,i)=>(x/g.v)/(us.s[i]/us.v)),sh0=S.sh.map((x,i)=>x*rel[i]),sd=d3.sum(sh0);shr=sh0.map(x=>x/sd);mgs=S.mg}
@@ -390,27 +657,32 @@ function panels(){
  $('sum').textContent='Shares are normalized (entered totals: race '+d3.sum(S.sh).toFixed(1)+'%, community type '+d3.sum(S.th).toFixed(1)+'%, party '+d3.sum(S.ph).toFixed(1)+'%).';
  $('phint').textContent='Party ID is another cut of the same voters, so it stacks with race and community type. No county-level party-ID data exists, so each county’s Democrat/Republican mix is estimated from its baseline vote margin (Independents held at the national share). Group margins are national exit-poll figures (approximate). Example: set Independents’ D margin to +20 to swing them left.';
  $('dcardsP').innerHTML=PA.map((n,i)=>`<div class=gc><small>${n}s</small><div class=n>${(psh[i]*100).toFixed(1)}%</div><div class=k><i style="width:${Math.min(100,psh[i]*100)}%"></i></div><small>${n0(tot*psh[i])} voters</small><small>share of electorate</small></div>`).join('');
- const cp=DEMOP[CMPY]?DEMOP[CMPY][1]:null;
- $('dtabP').innerHTML=`<tr><th>Party</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${esc(lbl(CMPY))}</th><th>Shift</th></tr>`+PA.map((n,i)=>{const m=pmg[i],sh=cp?m-cp[i]:0;return `<tr><td>${n}</td><td>${(psh[i]*100).toFixed(1)}%</td><td>${n0(tot*psh[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${cp?fmt(cp[i]):'–'}</td><td class="${sh>0?'D':'R'}">${sh>0?'← D ':'R → '}${Math.abs(sh).toFixed(1)}</td></tr>`}).join('');
+ const cp=OFFK==='pres'?(DEMOP[CMPY]?DEMOP[CMPY][1]:null):BASE.pm;
+ $('dtabP').innerHTML=`<tr><th>Party</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${esc(OFFK==='pres'?lbl(CMPY):'baseline')}</th><th>Shift</th></tr>`+PA.map((n,i)=>{const m=pmg[i],sh=cp?m-cp[i]:0;return `<tr><td>${n}</td><td>${(psh[i]*100).toFixed(1)}%</td><td>${n0(tot*psh[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${cp?fmt(cp[i]):'–'}</td><td class="${sh>0?'D':'R'}">${sh>0?'← D ':'R → '}${Math.abs(sh).toFixed(1)}</td></tr>`}).join('');
  $('thint').textContent=TYOK?`Community type is a second cut of the same voters, so it stacks with the race inputs above. County mix: ${vn(near(AVAIL.ty,effVint()))} urban/rural population split by land-area density. Margins: national exit polls (approximate).`:'County community-type data (Census) didn’t load here, so every county uses the national community-type mix. The inputs still move the map, just less precisely.';
  $('dcardsT').innerHTML=TY.map((n,i)=>`<div class=gc><small>${n} voters</small><div class=n>${(tsh[i]*100).toFixed(1)}%</div><div class=k><i style="width:${Math.min(100,tsh[i]*100)}%"></i></div><small>${n0(tot*tsh[i])} voters</small><small>share of electorate</small></div>`).join('');
- const ct=DEMOT[CMPY]?DEMOT[CMPY][1]:null;
- $('dtabT').innerHTML=`<tr><th>Community</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${esc(lbl(CMPY))}</th><th>Shift</th></tr>`+TY.map((n,i)=>{const m=tmg[i],sh=ct?m-ct[i]:0;return `<tr><td>${n}</td><td>${(tsh[i]*100).toFixed(1)}%</td><td>${n0(tot*tsh[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${ct?fmt(ct[i]):'–'}</td><td class="${sh>0?'D':'R'}">${sh>0?'← D ':'R → '}${Math.abs(sh).toFixed(1)}</td></tr>`}).join('');
+ const ct=OFFK==='pres'?(DEMOT[CMPY]?DEMOT[CMPY][1]:null):BASE.tm;
+ $('dtabT').innerHTML=`<tr><th>Community</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${esc(OFFK==='pres'?lbl(CMPY):'baseline')}</th><th>Shift</th></tr>`+TY.map((n,i)=>{const m=tmg[i],sh=ct?m-ct[i]:0;return `<tr><td>${n}</td><td>${(tsh[i]*100).toFixed(1)}%</td><td>${n0(tot*tsh[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${ct?fmt(ct[i]):'–'}</td><td class="${sh>0?'D':'R'}">${sh>0?'← D ':'R → '}${Math.abs(sh).toFixed(1)}</td></tr>`}).join('');
+ const xh=ALL.size&&[...ALL.values()].some(c=>c.agv&&Object.keys(c.agv).length);
+ $('xhint').textContent=xh?'Age (adults) and education (adults 25+) county mixes are from the ACS 2022 5-year data. Group margins are national exit-poll style figures typed from memory (approximate; only 2016, 2020 and 2024 are typed). Like party ID, these are another cut of the same voters, so they stack with the others. They apply nationally: there are no per-state or per-county tables for them.':'County age and education data aren’t in the loaded data (run the updated build_data.py and commit data/), so every county uses the national mix and these inputs move all places by the same amount.';
+ for(const g of XG){const gg=ST[SEL||'US'],tt=g.k==='a'?gg.a:gg.e,bs=BASE.xs[g.k],rel=tt.map((x,i)=>x/gg.v*S.xs[g.k][i]/bs[i]),sd=d3.sum(rel)||1,sh=rel.map(x=>x/sd),mg=S.xm[g.k],cd=OFFK==='pres'?(typeof CMPY==='number'?DX(CMPY)[g.k][1]:null):BASE.xm[g.k];
+  $('dtab'+g.k.toUpperCase()).innerHTML=`<tr><th>Group</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${esc(OFFK==='pres'?lbl(CMPY):'baseline')}</th><th>Shift</th></tr>`+g.names.map((n,i)=>{const m=mg[i],d=cd?m-cd[i]:0;return `<tr><td>${n}</td><td>${(sh[i]*100).toFixed(1)}%</td><td>${n0(tot*sh[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${cd?fmt(cd[i]):'–'}</td><td class="${d>0?'D':'R'}">${d>0?'← D ':'R → '}${Math.abs(d).toFixed(1)}</td></tr>`}).join('')}
  $('dgeo').textContent=name;
  $('dcards').innerHTML=G.slice(0,4).map((n,i)=>{const v=tot*shr[i],t=SEL?null:v/NCV[i];return `<div class=gc><small>${n} voters</small><div class=n>${t==null?(shr[i]*100).toFixed(1)+'%':(t*100).toFixed(1)+'%'}</div><div class=k><i style="width:${Math.min(100,(t==null?shr[i]*100:t*100))}%"></i></div><small>${n0(v)} voters</small>${t==null?'<small>share of electorate</small>':`<small>${n0(NCV[i])} citizen adults</small>`}</div>`}).join('');
- const cd=DEMO[CMPY]?DEMO[CMPY][1]:null;
- $('dtab').innerHTML=`<tr><th>Group</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${esc(lbl(CMPY))}</th><th>Shift</th></tr>`+G.map((n,i)=>{const m=mgs[i],s=cd?m-cd[i]:0;return `<tr><td>${n}</td><td>${(shr[i]*100).toFixed(1)}%</td><td>${n0(tot*shr[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${cd?fmt(cd[i]):'–'}</td><td class="${s>0?'D':'R'}">${s>0?'← D ':'R → '}${Math.abs(s).toFixed(1)}</td></tr>`}).join('');
+ const cd=OFFK==='pres'?(DEMO[CMPY]?DEMO[CMPY][1]:null):BASE.mg;
+ $('dtab').innerHTML=`<tr><th>Group</th><th>Electorate</th><th>Votes</th><th>D</th><th>R</th><th>Margin</th><th>${esc(OFFK==='pres'?lbl(CMPY):'baseline')}</th><th>Shift</th></tr>`+G.map((n,i)=>{const m=mgs[i],s=cd?m-cd[i]:0;return `<tr><td>${n}</td><td>${(shr[i]*100).toFixed(1)}%</td><td>${n0(tot*shr[i])}</td><td class=D>${((100+m)/2).toFixed(1)}%</td><td class=R>${((100-m)/2).toFixed(1)}%</td><td class="${m>0?'D':'R'}">${fmt(m)}</td><td>${cd?fmt(cd[i]):'–'}</td><td class="${s>0?'D':'R'}">${s>0?'← D ':'R → '}${Math.abs(s).toFixed(1)}</td></tr>`}).join('');
  $('dnote').textContent=(SEL?'Electorate shares come from this state’s population composition (or your overrides). ':'Turnout = voters ÷ citizen voting-age population (ACS, per group). ')+'Group margins are national, approximate, and editable.';
 }
 function demoStatus(){const v=[...C.values()],n=v.length,ns=v.filter(c=>c.s).length,nt=v.filter(c=>c.ty).length,u=LEVEL==='counties'&&COUNTYOK?'counties':'states',bad=ns<n*.9||nt<n*.9,el=$('dstat');
  if(!ALL.size){el.style.color='#ec6b7e';el.textContent='⚠ County data didn’t load (blocked here), so this uses built-in approximate state race mixes. Group shifts now differ by state, but not by county or community type. Open the page from GitHub Pages or a local server for full county demographics.';return}
  el.style.color=bad?'#ec6b7e':'';
  el.textContent=bad?`⚠ Demographics missing for ${n-Math.min(ns,nt)} of ${n} ${u} (race ${ns}, community type ${nt}). Those use the national mix, so group shifts move them all the same. County-level swings need data/counties.json or access to api.census.gov.`:`Demographics loaded for ${Math.min(ns,nt)} of ${n} ${u}: group shifts scale with each place’s own mix.`}
-function upd(){if(!C.size)return;calc();paint();panels();refreshSA();demoStatus();
- const o=ST[SEL];$('sinfo').innerHTML=o?`<b>${SEL}</b> · ${SCOPE==='state'?'':(EV[SEL]||'')+' EV · '}${fmt(o.m)} (${esc(BASEL)}${SV[BASEY]?' saved':' actual'} ${fmt(o.b)})`:'Pick a state or click a county to zoom in.'}
+function upd(){if(!C.size)return;calc();paint();panels();refreshSA();refreshCA();demoStatus();refreshAP();
+ const o=ST[SEL];$('sinfo').innerHTML=o?`<b>${SEL}</b> · ${SCOPE==='state'||OFFK!=='pres'?'':(EV[SEL]||'')+' EV · '}${fmt(o.m)} (${esc(BASEL)}${SV[BASEY]?' saved':' actual'} ${fmt(o.b)})`:'Pick a state or click a county to zoom in.'}
 function selState(){
- $('sadj').innerHTML='';if(SEL&&SCOPE==='national')$('sadj').append(sl('State adjustment (− R / + D pts)',-20,20,.5,S.st[SEL]||0,v=>S.st[SEL]=v));
+ $('sadj').innerHTML='';if(SEL&&SCOPE==='national')$('sadj').append(sl('State adjustment (− R / + D pts)',-20,20,.5,S.st[SEL]||0,v=>S.st[SEL]=v),stateExtras());
  if(SCOPE==='state')build();else buildSA();
+ buildCA();
  if(!SEL)svg.transition().duration(500).call(zm.transform,d3.zoomIdentity);
  else{const f=sf.find(x=>x.properties.name===SEL),[[x0,y0],[x1,y1]]=pth.bounds(f),k=Math.min(10,.9/Math.max((x1-x0)/975,(y1-y0)/610));
   svg.transition().duration(600).call(zm.transform,d3.zoomIdentity.translate(487.5-k*(x0+x1)/2,305-k*(y0+y1)/2).scale(k))}
@@ -432,7 +704,7 @@ function effVint(){if(VINT!=='auto')return+VINT;const sv=SV[BASEY];return autoV(
 const near=(ks,v)=>{let b=null;for(const k of ks)if(b==null||Math.abs(k-v)<Math.abs(b-v)||Math.abs(k-v)===Math.abs(b-v)&&k>b)b=k;return b};
 const pickV=(o,v)=>{if(!o)return undefined;const k=near(Object.keys(o).map(Number),v);return k==null?undefined:o[k]};
 function applyVint(){const v=effVint();LASTV=v;AVAIL.sh.clear();AVAIL.ty.clear();AVAIL.cv.clear();
- for(const c of ALL.values()){c.s=pickV(c.shv,v);c.ty=pickV(c.tyv,v);c.cvap=pickV(c.cvv,v);
+ for(const c of ALL.values()){c.s=pickV(c.shv,v);c.ty=pickV(c.tyv,v);c.cvap=pickV(c.cvv,v);c.ag=pickV(c.agv,v);c.ed=pickV(c.edv,v);
   for(const[k,st]of[['shv',AVAIL.sh],['tyv',AVAIL.ty],['cvv',AVAIL.cv]])if(c[k])for(const y in c[k])st.add(+y)}
  calcSBASE();vinfo()}
 function vinfo(){const rq=effVint(),el=$('vinfo');let t;
@@ -449,35 +721,73 @@ function calcSBASE(){const t={};for(const c of ALL.values()){if(!c.s||!c.st)cont
  for(const c of ALL.values()){if(!c.ty||!c.st)continue;TYOK=true;const w=(c.R[BASEY]||c.R[2024]||c.R[2020]||{}).t||0;if(!w)continue;const o=u[c.st]??=[0,0,0];c.ty.forEach((x,i)=>o[i]+=w*x)}
  for(const st in u){const sd=d3.sum(u[st]);if(sd)TBASE[st]=u[st].map(x=>x/sd*100)}}
 function stateRow(n,y){const ix=IX[n];if(!ix)return null;const sv=SV[y];
- if(sv){const o=sv.st[n];if(!o)return null;return{f:ix+'000',name:n,st:n,v:o[0],pd:o[1],pr:o[2],m0:o[3],mh:MT[n],s:SBASE[n]&&SBASE[n].map(x=>x/100),ty:TBASE[n]&&TBASE[n].map(x=>x/100)}}
+ if(sv){const o=sv.o.pres.st[n];if(!o)return null;return{f:ix+'000',name:n,st:n,v:o[0],pd:o[1],pr:o[2],m0:o[3],mh:MT[n],s:SBASE[n]&&SBASE[n].map(x=>x/100),ty:TBASE[n]&&TBASE[n].map(x=>x/100)}}
  let d,g,t;
  if(y===2024){[d,g,t]=S24[n]}else{t=NT[y]*S24[n][2]/tot24;const m=MT[n][y]/100,o=OT[y];d=t*(1-o+m)/2;g=t*(1-o-m)/2}
  return{f:ix+'000',name:n,st:n,v:t,pd:d/t,pr:g/t,m0:(d-g)/t*100,mh:MT[n],s:SBASE[n]&&SBASE[n].map(x=>x/100),ty:TBASE[n]&&TBASE[n].map(x=>x/100)}}
+function mkBase(y,sv,o,ay){if(sv){const d=(sv.o[o]&&!sv.o[o].none&&sv.o[o].demo)||sv.o.pres.demo;return{sh:[...d.sh],mg:[...d.mg],th:[...d.th],tm:[...d.tm],ph:[...(d.ph||DEMOP[2024][0])],pm:[...(d.pm||DEMOP[2024][1])],ap:d.ap!=null?d.ap:APD(sv.yr||2024),inc:d.inc!=null?d.inc:incOf(sv.yr||2024),...xb(sv.yr||2024)}}
+ return{sh:[...DEMO[y][0]],mg:[...DEMO[y][1]],th:[...DEMOT[y][0]],tm:[...DEMOT[y][1]],ph:[...DEMOP[y][0]],pm:[...DEMOP[y][1]],ap:APD(ay),inc:incOf(ay),...xb(y)}}
 function setBase(y){
- BASEY=y;const sv=SV[y];BASEL=sv?sv.name:String(y);BASE.sh=[...DEMO[y][0]];BASE.mg=[...DEMO[y][1]];BASE.th=[...DEMOT[y][0]];BASE.tm=[...DEMOT[y][1]];BASE.ph=[...DEMOP[y][0]];BASE.pm=[...DEMOP[y][1]];
- if(sv)EV={...sv.ev};else{const ev=EVT[y>=2024?2020:y>=2012?2010:y>=2004?2000:1990];EV=Object.fromEntries(NM.map((n,i)=>[n,ev[i]]))}
+ BASEY=y;const sv=SV[y],py=sv?y:pyOf(y),TOF=sv?1:y%4===0?1:y%2===0?.62:.42;BASEL=sv?sv.name:String(y);
+ for(const o of OFFS)BASEO[o]=mkBase(py,sv,o,o==='pres'?py:y);
+ HY=sv?(sv.yr||2024):y;{const hs=sv&&sv.o.house&&!sv.o.house.none&&sv.o.house.hs;HD0=hs||(!sv&&HY>=2024?D24M:null)}
+ if(sv)EV={...sv.ev};else{const ev=EVT[py>=2024?2020:py>=2012?2010:py>=2004?2000:1990];EV=Object.fromEntries(NM.map((n,i)=>[n,ev[i]]))}
  applyVint();
- C=new Map();
- if(sv){if(sv.lvl==='counties'&&ALL.size)for(const u of sv.u){const c=ALL.get(u[0]);if(c){c.v=u[1];c.pd=u[2];c.pr=u[3];c.m0=u[4];C.set(c.f,c)}}}
- else if(ALL.size&&CY.includes(y))for(const c of ALL.values()){const r=c.R[y];if(r&&r.t>0){c.v=r.t;c.pd=r.d/r.t;c.pr=r.g/r.t;c.m0=(r.d-r.g)/r.t*100;C.set(c.f,c)}}
- COUNTYOK=C.size>=1500;
- if(!COUNTYOK){C=new Map();for(const n of NM){const r=stateRow(n,y);if(r)C.set(r.f,r)}}
- const tmp={};for(const c of C.values()){const o=tmp[c.st]??={v:0,x:0};o.v+=c.v;o.x+=c.v*c.m0}
- SMEAN={};for(const s in tmp)SMEAN[s]=tmp[s].x/tmp[s].v;
- NAT=d3.sum(Object.values(tmp),o=>o.x)/d3.sum(Object.values(tmp),o=>o.v);
+ // units are light objects layered over the county (or state) record, so each office keeps its own results
+ const mkU=(p,v,pd,pr,m0)=>{const u=Object.create(p);u.v=v;u.pd=pd;u.pr=pr;u.m0=m0;return u};
+ let P=new Map();
+ if(sv){const pr=sv.o.pres;if(pr.lvl==='counties'&&ALL.size)for(const u of pr.u){const c=ALL.get(u[0]);if(c)P.set(c.f,mkU(c,u[1],u[2],u[3],u[4]))}}
+ else if(ALL.size&&CY.includes(py))for(const c of ALL.values()){const r=c.R[py];if(r&&r.t>0)P.set(c.f,mkU(c,r.t,r.d/r.t,r.g/r.t,(r.d-r.g)/r.t*100))}
+ COUNTYOK=P.size>=1500;
+ if(!COUNTYOK){P=new Map();for(const n of NM){const r=stateRow(n,py);if(r)P.set(r.f,mkU(r,r.v,r.pd,r.pr,r.m0))}}
+ const stats=M=>{const t={};for(const c of M.values()){const x=t[c.st]??={v:0,x:0};x.v+=c.v;x.x+=c.v*c.m0}return t},
+  fin=O=>{const t=stats(O.C);O.SMEAN={};for(const s in t)O.SMEAN[s]=t[s].x/t[s].v;const A=[...O.C.values()].filter(c=>O.real.has(c.st)),B=A.length?A:[...O.C.values()];O.NAT=d3.sum(B,c=>c.v*c.m0)/d3.sum(B,c=>c.v)};
+ const pst=stats(P),PSM={};for(const s in pst)PSM[s]=pst[s].x/pst[s].v;
+ OF.pres={C:P,ST:{},SMEAN:{},NAT:0,real:new Set(Object.keys(PSM)),src:'real'};fin(OF.pres);
+ const pn=[...P.values()].filter(c=>c.st!=='District of Columbia'),hOff=(HNAT[hyE(HY)]??HNAT[2024])-d3.sum(pn,c=>c.v*c.m0)/d3.sum(pn,c=>c.v);
+ for(const o of['sen','gov','house']){const O=OF[o]={C:new Map(),ST:{},SMEAN:{},NAT:0,real:new Set(),src:'none'},so=sv&&sv.o[o]&&!sv.o[o].none&&(sv.o[o].act||[]).length?sv.o[o]:null;
+  if(so){O.src='saved';O.real=SEATSEL[o]?seatSetFor(o,y,sv):new Set(so.act);
+   if(o==='sen'||o==='gov'){const Sx=OS[o];O.reg=new Set(O.real);O.spc=new Set();O.spE=new Set();O.spB=new Set();O.kind={};for(const q in Sx.nr)O.real.delete(q);for(const q in Sx.sp)if(Sx.sp[q]&&PSM[q]!=null){O.real.add(q);O.spc.add(q);O.spE.add(q);O.kind[q]='spec'}}const um=so.lvl==='counties'&&COUNTYOK?new Map(so.u.map(u=>[u[0],u])):null;
+   for(const p of P.values()){const r=um?um.get(p.f):so.st[p.st];O.C.set(p.f,r?(um?mkU(p,r[1],r[2],r[3],r[4]):mkU(p,r[0],r[1],r[2],r[3])):mkU(p,p.v,p.pd,p.pr,p.m0))}}
+  else{const R=!sv&&!SEATSEL[o]&&RES[o]&&RES[o][y]||null,dm={},spm={},Sx=OS[o],sp2=o==='sen'||o==='gov',est=q=>Math.max(-30,Math.min(30,(OFFSET[o]&&OFFSET[o][q])||0));
+   if(R){for(const q in R)if(PSM[q]!=null)dm[q]=R[q]-PSM[q];O.src='real'}
+   else{for(const q of seatSetFor(o,y,sv))if(PSM[q]!=null)dm[q]=o==='house'?hOff:est(q);O.src='est'}
+   O.reg=new Set(Object.keys(dm));O.spc=new Set();O.spB=new Set();O.spE=new Set();O.kind={};
+   if(sp2){
+    // built-in specials: results of a second race, a RES entry that is itself a special, or default specials for estimated years
+    for(const a of (R&&SPO[o]&&SPO[o][y])||[]){const q=nmOf(a);if(q in dm){spm[q]=dm[q];delete dm[q]}}
+    if(R&&SPR[o]&&SPR[o][y])for(const a in SPR[o][y]){const q=nmOf(a);if(PSM[q]!=null)spm[q]=SPR[o][y][a]-PSM[q]}
+    if(!R&&!SEATSEL[o]&&SPD[o]&&SPD[o][y])for(const a of SPD[o][y]){const q=nmOf(a);if(PSM[q]!=null){spm[q]=est(q);O.spE.add(q)}}
+    for(const q in spm)O.spB.add(q);
+    // specials you called: baseline = the state's presidential margin plus its usual (office - president) gap
+    for(const q in Sx.sp)if(Sx.sp[q]&&PSM[q]!=null&&!(q in spm)){spm[q]=est(q);O.spE.add(q)}
+    O.reg=new Set(Object.keys(dm));O.spc=new Set(Object.keys(spm));
+    // which race each state runs: regular unless a special is the only one left or you switched to it; removed races drop out
+    const fd={};for(const q of new Set([...Object.keys(dm),...Object.keys(spm)])){const hr=q in dm&&!Sx.nr[q],hs=q in spm&&!Sx.ns[q];if(!hr&&!hs)continue;const sk=hs&&(!hr||Sx.sw[q]==='spec');fd[q]=sk?spm[q]:dm[q];O.kind[q]=sk?'spec':'reg';if(hr&&hs)(O.alt??={})[q]=PSM[q]+(sk?dm[q]:spm[q])}
+    for(const q in dm)delete dm[q];Object.assign(dm,fd)}
+   O.real=new Set(Object.keys(dm));
+   for(const p of P.values()){const d=dm[p.st]||0;O.C.set(p.f,mkU(p,p.v*TOF,Math.max(.001,p.pd+d/200),Math.max(.001,p.pr-d/200),p.m0+d))}}
+  O.kind??={};O.reg??=new Set(O.real);O.spB??=new Set();O.spE??=new Set();O.spc??=new Set();
+  fin(O)}
+ HB=0;if(!HD0)solveHB();
  // estimated party mix per county: national mix tilted by the county's baseline lean (Independents stay at the national share)
- PBASE={};const pp={};
- for(const c of C.values()){const dm=(c.m0-NAT)/100*PK;let p=[BASE.ph[0]/100+dm,BASE.ph[1]/100,BASE.ph[2]/100-dm].map(x=>Math.max(.03,x));const sd=d3.sum(p);c.pt=p.map(x=>x/sd);
+ const NATp=OF.pres.NAT;PBASE={};const pp={};
+ for(const c of P.values()){const dm=(c.m0-NATp)/100*PK,bp=BASEO.pres.ph;let p=[bp[0]/100+dm,bp[1]/100,bp[2]/100-dm].map(x=>Math.max(.03,x));const sd=d3.sum(p);c.pt=p.map(x=>x/sd);
   const o=pp[c.st]??=[0,0,0];c.pt.forEach((x,i)=>o[i]+=c.v*x)}
  for(const s in pp){const sd=d3.sum(pp[s]);if(sd)PBASE[s]=pp[s].map(x=>x/sd*100)}
+ useOff(OFFK);
 }
 function chooseBase(y){
- const sv=SV[y];if(sv){VINT=String(sv.vint||'auto');$('vint').value=VINT;$('sname').value=''}
- setBase(y);if(sv)S=init();
- S.sh=[...BASE.sh];S.mg=[...BASE.mg];S.th=[...BASE.th];S.tm=[...BASE.tm];S.ph=[...BASE.ph];S.pm=[...BASE.pm];S.sa={};CMPY=y;$('cmp').value=y;
+ SEATSEL.sen=SEATSEL.gov=null;for(const o of OFFS)if(OS[o])Object.assign(OS[o],{sp:{},nr:{},ns:{},sw:{}});const sv=SV[y];if(sv){VINT=String(sv.vint||'auto');$('vint').value=VINT;$('sname').value=''}
+ setBase(y);
+ for(const o of OFFS){if(sv||!OS[o])OS[o]=initS(o);else{const b=BASEO[o];Object.assign(OS[o],{sh:[...b.sh],mg:[...b.mg],th:[...b.th],tm:[...b.tm],ph:[...b.ph],pm:[...b.pm],ap:b.ap,inc:b.inc,apb:APB[o],apo:{},sa:{},ca:{},hold:{},sp:{},nr:{},ns:{},sw:{},tp:0,rf:50,rs:0,vr:{},xs:cx(b.xs),xm:cx(b.xm)})}}
+ if(!sv&&!isPresY(y)&&OFFK==='pres'){OFFK=y%2?'gov':'sen';document.querySelectorAll('#offtabs button').forEach(b=>b.classList.toggle('on',b.dataset.o===OFFK));$('cmp').disabled=true}
+ useOff(OFFK);SELC='';$('dn').value=S.dn;$('rn').value=S.rn;CMPY=sv?y:pyOf(y);$('cmp').value=CMPY;
  LEVEL=COUNTYOK?'counties':'states';$('lv').value=LEVEL;$('lv').querySelector('[value=counties]').disabled=!COUNTYOK;
  $('base').value=y;$('sdel').style.display=sv?'':'none';
- $('binfo').textContent=sv?`Starting from your saved election “${sv.name}” (${COUNTYOK?'county':'state'}-level results${sv.lvl==='counties'&&!COUNTYOK?'; its county detail needs the county data, which isn’t loaded here':''}). Sliders and group inputs restart from the values saved with it; any state-specific group adjustments are already built into its results.`:COUNTYOK?`County-level results for ${y}.`:y===2024?'State-level certified 2024 totals.':(y<2008?`County results for ${y} aren’t in the data source, so this runs at state level.`:`County files for ${y} didn’t load, so this uses built-in state results.`)+' State margins are typed-in approximations (about ±0.5 pt) and vote totals are estimated.';
+ $('binfo').textContent=sv?`Starting from your saved election “${sv.name}” (${COUNTYOK?'county':'state'}-level results${sv.lvl==='counties'&&!COUNTYOK?'; its county detail needs the county data, which isn’t loaded here':''}). Sliders and group inputs restart from the values saved with it; any state, county or candidate adjustments are already built into its results.`:COUNTYOK?`County-level results for ${y}.`:y===2024?'State-level certified 2024 totals.':(y<2008?`County results for ${y} aren’t in the data source, so this runs at state level.`:`County files for ${y} didn’t load, so this uses built-in state results.`)+' State margins are typed-in approximations (about ±0.5 pt) and vote totals are estimated.';
+ if(!sv&&!isPresY(y))$('binfo').textContent=(y<=2024?`No presidential election in ${y}`:`${y} is hypothetical`)+`. House, Senate and governor seats start from the ${pyOf(y)} presidential lean (state-level unless county data is loaded), with vote totals scaled for lower turnout. Seats up: ${y%2?'governors only':'the whole House, Senate class '+senCls(y)+(y%4===0?'':', '+GC.M.length+' governors')}.`;
+ offInfo();
  if(sv)build();else buildDemo();if(paths)selState();else build();
 }
 const get=async(urls,parse)=>{for(const u of urls){try{return await parse(u)}catch(e){console.warn(u,e)}}return null};
@@ -486,7 +796,7 @@ function ingest(a){for(const r of a){const y=r.y?{...r.y}:{};
  const R={},mh={};for(const k in y){const[d,g,t]=y[k];if(t>0){R[k]={d,g,t};mh[k]=(d-g)/t*100}}
  if(r.m2!=null&&mh[2020]==null)mh[2020]=r.m2;
  if(!Object.keys(R).length)continue;
- ALL.set(r.f,{f:r.f,name:r.n,st:r.s||SN[r.f.slice(0,2)],R,mh,shv:r.shv||(r.sh?{2022:r.sh}:{}),tyv:r.tyv||(r.ty?{2020:r.ty}:{}),cvv:r.cvv||(r.cv?{2022:r.cv}:{})})}
+ ALL.set(r.f,{f:r.f,name:r.n,st:r.s||SN[r.f.slice(0,2)],R,mh,shv:r.shv||(r.sh?{2022:r.sh}:{}),tyv:r.tyv||(r.ty?{2020:r.ty}:{}),cvv:r.cvv||(r.cv?{2022:r.cv}:{}),agv:r.agv||{},edv:r.edv||{}})}
  applyVint()}
 const CKEY='c1f724c3832633ff1237e167f6821e940339e767'; // Census API key
 async function live(){
@@ -531,9 +841,9 @@ async function main(){
  const z=d3.select('#z');svg=d3.select('#map');
  paths=z.selectAll('.c').data(geo).join('path').attr('class','c').attr('d',pth).attr('fill',NA).attr('stroke','#0a121f').attr('stroke-width',.3);
  const tipFn=(e,d)=>{const c=UV(d),t=$('tip');t.style.display='block';t.style.left=Math.min(e.clientX+12,innerWidth-240)+'px';t.style.top=e.clientY+12+'px';
-  const b=c&&c.mh?c.mh[CMPY]:null;
-  t.innerHTML=c?`<b>${LEVEL==='counties'?c.name+', '+c.st:c.name}</b><br><span class=D>${n0(c.vs*c.pdS)} (${(c.pdS*100).toFixed(1)}%)</span> D<br><span class=R>${n0(c.vs*c.prS)} (${(c.prS*100).toFixed(1)}%)</span> R<br>Margin ${fmt(c.m)} · ${esc(BASEL)} ${fmt(c.m0)}${b!=null&&CMPY!==BASEY?' · '+esc(lbl(CMPY))+' '+fmt(b):''}<br>${n0(c.vs)} votes${c.ty?'<br>'+TY.map((n,i)=>n+' '+(c.ty[i]*100).toFixed(0)+'%').join(' · '):''}${c.cvap?' · turnout '+(c.vs/c.cvap*100).toFixed(1)+'%':''}`:`${SN[d.id.slice(0,2)]||''} (no county data)`};
- const pick=(e,d)=>{SEL=SN[d.id.slice(0,2)]||'';$('sel').value=SEL;selState()},hide=()=>$('tip').style.display='none';
+  const b=OFFK==='pres'&&c&&c.mh?c.mh[CMPY]:null;
+  t.innerHTML=c?`<b>${LEVEL==='counties'?c.name+', '+c.st:c.name}</b><br><span class=D>${n0(c.vs*c.pdS)} (${(c.pdS*100).toFixed(1)}%)</span> D<br><span class=R>${n0(c.vs*c.prS)} (${(c.prS*100).toFixed(1)}%)</span> R<br>${c.act===false?'<i>no '+ON[OFFK].toLowerCase()+' race here this cycle</i><br>':''}Margin ${fmt(c.m)} · ${esc(BASEL)} ${fmt(c.m0)}${b!=null&&CMPY!==BASEY?' · '+esc(lbl(CMPY))+' '+fmt(b):''}<br>${n0(c.vs)} votes${c.ty?'<br>'+TY.map((n,i)=>n+' '+(c.ty[i]*100).toFixed(0)+'%').join(' · '):''}${c.cvap?' · turnout '+(c.vs/c.cvap*100).toFixed(1)+'%':''}`:`${SN[d.id.slice(0,2)]||''} (no county data)`};
+ const pick=(e,d)=>{SEL=SN[d.id.slice(0,2)]||'';SELC=(LEVEL==='counties'&&String(d.id).length===5&&C.has(d.id))?d.id:'';$('sel').value=SEL;selState()},hide=()=>$('tip').style.display='none';
  sf.forEach(d=>d._c=pth.centroid(d));
  sp=d3.select('#zs').selectAll('path').data(sf).join('path').attr('d',pth).attr('fill',NA).attr('stroke','#0a121f').attr('stroke-width',.6).style('cursor','pointer').on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
  paths.on('mousemove',tipFn).on('mouseleave',hide).on('click',pick);
@@ -542,14 +852,14 @@ async function main(){
  d3.select('#zz').append('g').attr('id','zb');d3.select('#zz').append('g').attr('id','za');
  zm=d3.zoom().scaleExtent([1,14]).on('zoom',e=>{ZK=e.transform.k;d3.select('#zz').attr('transform',e.transform);overlay()});svg.call(zm);
  $('zin').onclick=()=>svg.transition().duration(250).call(zm.scaleBy,1.6);$('zout').onclick=()=>svg.transition().duration(250).call(zm.scaleBy,1/1.6);
- $('zreset').onclick=()=>{if(SCOPE==='national'){SEL='';$('sel').value=''}selState()};
- $('sel').onchange=()=>{SEL=$('sel').value;selState()};
+ $('zreset').onclick=()=>{if(SCOPE==='national'){SEL='';$('sel').value=''}SELC='';selState()};
+ $('sel').onchange=()=>{SEL=$('sel').value;SELC='';selState()};
  $('msg').textContent='Geometry loaded. Loading results…';
  let rows=await get(['data/counties.json'],d3.json);if(!rows||!rows.length)rows=await live();
  if(rows&&rows.length)ingest(rows);
  if(!ALL.size)$('msg').textContent='County data could not be downloaded here (blocked in this preview). Showing real 2024 state results and built-in historical state results; counties unlock on GitHub Pages or after running build_data.py and committing data/.';
  else $('msg').style.display='none';
- loadSaved();buildSelects();chooseBase(2024);
+ loadSaved();buildSelects();const sh0=readShare();chooseBase(sh0&&typeof sh0.b==='number'&&sh0.b>=2000&&sh0.b<=2028?sh0.b:2024);if(sh0&&sh0.s)try{applyShare(sh0)}catch(e){console.warn('share link',e)}
  loadTypes().then(ok=>{if(ok&&!COUNTYOK)setBase(BASEY);upd()}).catch(e=>console.warn('community type',e));
 }
 $('modes').innerHTML=Object.entries(MODES).map(([k,v])=>`<button data-k=${k} class="${k===MODE?'on':''}">${v}</button>`).join('');
@@ -557,19 +867,27 @@ $('modes').onclick=e=>{const k=e.target.dataset.k;if(!k)return;MODE=k;document.q
 // ---- saved elections: snapshot of the simulated results (+ electorate inputs, electoral votes, Census vintage) usable as a new baseline
 const newId=()=>'s'+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36);
 function buildSelects(){const ys=[...YEARS].reverse(),sv=SAVEDL.map(i=>SV[i]),og=f=>sv.length?`<optgroup label="Saved elections">${sv.map(f).join('')}</optgroup>`:'';
- $('base').innerHTML=ys.map(y=>`<option value="${y}">${y}${y<2008?' (state-level)':''}</option>`).join('')+og(x=>`<option value="${x.id}">${esc(x.name)}</option>`);
+ const lab=y=>y%4===0?`${y}${y<2008?' (state-level)':''}${y>2024?' (hypothetical)':''}`:y%2===0?`${y} midterm · House, Senate class ${senCls(y)}, ${GC.M.length} governors${y>2024?' (hypothetical)':''}`:`${y} · governors: ${GC[govCls(y)].join(', ')}${y>2024?' (hypothetical)':''}`,
+  all=[];for(let y=2028;y>=2000;y--)all.push(y);
+ const grp=(t,a)=>`<optgroup label="${t}">${a.map(y=>`<option value="${y}">${lab(y)}</option>`).join('')}</optgroup>`;
+ $('base').innerHTML=grp('Presidential years (President · House · Senate · Governors)',all.filter(y=>y%4===0))+grp('Midterm years (House · Senate · Governors)',all.filter(y=>y%4===2))+grp('Off years (governors only)',all.filter(y=>y%2))+og(x=>`<option value="${x.id}">${esc(x.name)}</option>`);
  $('cmp').innerHTML=ys.map(y=>`<option value="${y}">${y} election</option>`).join('')+og(x=>`<option value="${x.id}">${esc(x.name)} (saved)</option>`);
  $('base').value=String(BASEY);$('cmp').value=String(CMPY)}
-function snap(name,id){const lvl=COUNTYOK?'counties':'states',u=[],st={},sm={};
- if(lvl==='counties')for(const c of C.values())u.push([c.f,Math.round(c.vs),+c.pdS.toFixed(5),+c.prS.toFixed(5),+c.m.toFixed(3)]);
- for(const k in ST){if(k==='US')continue;const o=ST[k];st[k]=[Math.round(o.v),+(o.d/o.v).toFixed(5),+(o.r/o.v).toFixed(5),+o.m.toFixed(3)];sm[k]=st[k][3]}
- return{id:id||newId(),name,t:Date.now(),from:BASEL,lvl,scope:SCOPE,sel:SEL,vint:effVint(),yr:simYear()||(typeof BASEY==='number'?BASEY:(SV[BASEY]?SV[BASEY].yr:null))||null,
-  demo:{sh:[...S.sh],mg:[...S.mg],th:[...S.th],tm:[...S.tm],ph:[...S.ph],pm:[...S.pm]},ev:{...EV},st,sm,u}}
-function regSaved(sv){DEMO[sv.id]=[[...sv.demo.sh],[...sv.demo.mg]];DEMOT[sv.id]=[[...sv.demo.th],[...sv.demo.tm]];
- DEMOP[sv.id]=sv.demo.ph&&sv.demo.pm?[[...sv.demo.ph],[...sv.demo.pm]]:[[...DEMOP[2024][0]],[...DEMOP[2024][1]]]; // older saves have no party data
- for(const n in sv.sm)if(MT[n])MT[n][sv.id]=sv.sm[n];
- if(sv.lvl==='counties')for(const u of sv.u){const c=ALL.get(u[0]);if(c&&c.mh)c.mh[sv.id]=u[4]}}
-const okSV=s=>s&&typeof s.name==='string'&&s.demo&&['sh','mg','th','tm'].every(k=>Array.isArray(s.demo[k]))&&s.st&&s.ev&&(s.lvl!=='counties'||Array.isArray(s.u));
+function snap(name,id){const o={};
+ for(const k of OFFS){const O=OF[k],Sx=OS[k],lvl=COUNTYOK?'counties':'states',u=[],st={},sm={},act=Object.keys(O.ST).filter(x=>x!=='US'&&O.ST[x].act),demo={sh:[...Sx.sh],mg:[...Sx.mg],th:[...Sx.th],tm:[...Sx.tm],ph:[...Sx.ph],pm:[...Sx.pm],ap:Sx.ap,inc:Sx.inc,apb:Sx.apb};
+  if(k!=='pres'&&!act.length){o[k]={lvl,u,st,sm,act,demo,none:true};continue}
+  if(lvl==='counties')for(const c of O.C.values())u.push([c.f,Math.round(c.vs),+c.pdS.toFixed(5),+c.prS.toFixed(5),+c.m.toFixed(3)]);
+  for(const s in O.ST){if(s==='US')continue;const x=O.ST[s];st[s]=[Math.round(x.v),+(x.d/x.v).toFixed(5),+(x.r/x.v).toFixed(5),+x.m.toFixed(3)];sm[s]=st[s][3]}
+  o[k]={lvl,u,st,sm,act,demo};
+  if(k==='house'){const hs={};for(const s in O.ST){if(s==='US')continue;const h=hseats(s,O.ST[s].m,O.ST);if(h.N)hs[s]=Math.round(h.d)}o[k].hs=hs}}
+ return{id:id||newId(),name,t:Date.now(),from:BASEL,lvl:o.pres.lvl,scope:SCOPE,sel:SEL,vint:effVint(),yr:simYear()||(typeof BASEY==='number'?BASEY:(SV[BASEY]?SV[BASEY].yr:null))||null,ev:{...EV},o}}
+// older saves held a single (presidential) result at the top level
+function normSV(s){if(!s.o){s.o={pres:{lvl:s.lvl,u:s.u||[],st:s.st,sm:s.sm||{},act:Object.keys(s.st||{}),demo:s.demo}};delete s.u;delete s.st;delete s.sm;delete s.demo}return s}
+function regSaved(s){const p=s.o.pres,d=p.demo;DEMO[s.id]=[[...d.sh],[...d.mg]];DEMOT[s.id]=[[...d.th],[...d.tm]];
+ DEMOP[s.id]=d.ph&&d.pm?[[...d.ph],[...d.pm]]:[[...DEMOP[2024][0]],[...DEMOP[2024][1]]]; // older saves have no party data
+ for(const n in p.sm)if(MT[n])MT[n][s.id]=p.sm[n];
+ if(p.lvl==='counties')for(const u of p.u){const c=ALL.get(u[0]);if(c&&c.mh)c.mh[s.id]=u[4]}}
+const okSV=s=>{if(!s||typeof s.name!=='string')return false;try{normSV(s)}catch(e){return false}const p=s.o&&s.o.pres;return!!(p&&p.demo&&['sh','mg','th','tm'].every(k=>Array.isArray(p.demo[k]))&&p.st&&s.ev&&(p.lvl!=='counties'||Array.isArray(p.u)))};
 function addSV(s){s.name=String(s.name).slice(0,40);const old=SAVEDL.map(i=>SV[i]).find(x=>x.name.toLowerCase()===s.name.toLowerCase());
  if(old)s.id=old.id;else if(!/^s\w+$/.test(s.id||'')||SV[s.id])s.id=newId();
  SV[s.id]=s;if(!old)SAVEDL.push(s.id);regSaved(s);return{s,old:!!old}}
@@ -596,19 +914,79 @@ $('vint').onchange=()=>{VINT=$('vint').value;applyVint();upd()};
 $('sname').oninput=()=>{if(VINT==='auto'&&effVint()!==LASTV)applyVint();else vinfo();upd()};
 buildSelects();
 $('base').onchange=()=>chooseBase(pk($('base').value));
+$('seatsel').onchange=()=>{SEATSEL[OFFK]=$('seatsel').value||null;setBase(BASEY);SELC='';calc();offInfo();build();if(paths)selState();else upd()};
 $('scope').onclick=e=>{const k=e.target.dataset.k;if(k)setScope(k)};
 $('cmp').onchange=()=>{CMPY=pk($('cmp').value);if(C.size){paint();panels()}};
 $('arr').onchange=()=>C.size&&paint();
 $('lv').onchange=()=>{LEVEL=$('lv').value;if(C.size)paint()};
-$('dn').oninput=$('rn').oninput=upd;
+$('dn').oninput=()=>{S.dn=$('dn').value;upd()};$('rn').oninput=()=>{S.rn=$('rn').value;upd()};
+$('offtabs').onclick=e=>{const o=e.target.dataset.o;if(o)setOff(o)};
+$('careset').onclick=()=>{if(SELC){delete S.ca[SELC];buildCA();upd()}};
+$('close').onclick=e=>{const tr=e.target.closest('tr'),f=tr&&tr.dataset.f;if(f&&LEVEL==='counties'&&C.has(f)){SELC=f;buildCA();upd()}};
 $('sareset').onclick=()=>{if(SEL){delete S.sa[SEL];buildSA();upd()}};
 $('salist').onclick=e=>{const k=e.target.dataset.st;if(k){SEL=k;$('sel').value=k;selState()}};
-$('reset').onclick=()=>{S=init();build();if(paths)selState()};
+$('reset').onclick=()=>{for(const o of OFFS)OS[o]=initS(o);useOff(OFFK);SELC='';$('dn').value=S.dn;$('rn').value=S.rn;build();if(paths)selState()};
 $('mc').onclick=()=>{const dn=$('dn').value,rn=$('rn').value,N=2000;
+ if(OFFK!=='pres'&&!Object.values(ST).some(o=>o.act&&o!==ST.US)){$('mcr').textContent='No '+ON[OFFK].toLowerCase()+' races are being held. Hold a hypothetical race in a state first.';return}
+ if(OFFK==='house'&&!(SCOPE==='state'&&ST[SEL])){const A=Object.entries(ST).filter(([s,o])=>s!=='US'&&o.act&&hseats(s,0).N>0),T=d3.sum(A,([s])=>hseats(s,0).N),need=Math.floor(T/2)+1,nr=d3.randomNormal(0,3),sr=d3.randomNormal(0,3.5);let w=0,tot=0;
+  for(let i=0;i<N;i++){const n=nr();let e=0;for(const[s,o]of A)e+=Math.round(hseats(s,o.m+n+sr()).d);tot+=e;if(e>=need)w++}
+  $('mcr').innerHTML=`<b class=D>${dn}</b> wins the House ${(w/N*100).toFixed(1)}% · <b class=R>${rn}</b> ${(100-w/N*100).toFixed(1)}%<br>Average D seats: ${(tot/N).toFixed(0)} of ${T} (${need} needed)<br><small>σ national 3 pts, state 3.5 pts; seats from the state-level curve</small>`;return}
  if(SCOPE==='state'&&ST[SEL]){const m=ST[SEL].m,sr=d3.randomNormal(0,3.5);let w=0;for(let i=0;i<N;i++)if(m+sr()>0)w++;
   $('mcr').innerHTML=`<b class=D>${dn}</b> wins ${(w/N*100).toFixed(1)}% · <b class=R>${rn}</b> ${(100-w/N*100).toFixed(1)}%<br><small>σ state 3.5 pts</small>`;return}
- const st=Object.entries(ST).filter(([s])=>s!=='US').map(([s,o])=>[o.m,EV[s]||0]);let w=0,tot=0;const nr=d3.randomNormal(0,3),sr=d3.randomNormal(0,3.5);
- for(let i=0;i<N;i++){const n=nr(),e=st.reduce((a,[m,v])=>a+(m+n+sr()>0?v:0),0);tot+=e;if(e>=270)w++}
- $('mcr').innerHTML=`<b class=D>${dn}</b> wins ${(w/N*100).toFixed(1)}% · <b class=R>${rn}</b> ${(100-w/N*100).toFixed(1)}%<br>Average D electoral votes: ${(tot/N).toFixed(0)}<br><small>σ national 3 pts, state 3.5 pts</small>`};
+ if(OFFK==='sen'&&SCOPE!=='state'){const t=senCtl();if(t){const nr=d3.randomNormal(0,3),sr=d3.randomNormal(0,3.5);let w=0,tot=0,tie=0;
+  for(let i=0;i<N;i++){const n=nr();let D=t.hD;for(const m of t.ms)if(m+n+sr()>0)D++;tot+=D;if(D>50||(D===50&&t.vp==='D'))w++;else if(D===50&&t.vp!=='R')tie++}
+  $('mcr').innerHTML=`<b class=D>${dn}</b> controls the Senate ${(w/N*100).toFixed(1)}% · <b class=R>${rn}</b> ${((N-w-tie)/N*100).toFixed(1)}%${tie?` · tied ${(tie/N*100).toFixed(1)}%`:''}<br>Average D seats: ${(tot/N).toFixed(1)} of 100<br><small>σ national 3 pts, state 3.5 pts; seats not up keep their January 2025 party</small>`;return}}
+ const st=OFFK==='pres'?evUnits().map(u=>[u.m,u.e]):Object.entries(ST).filter(([s,o])=>s!=='US'&&(OFFK==='pres'||o.act)).map(([s,o])=>[o.m,OFFK==='pres'?EV[s]||0:1]),need=OFFK==='pres'?270:Math.floor(d3.sum(st,x=>x[1])/2)+1;let w=0,tot=0;const nr=d3.randomNormal(0,3),sr=d3.randomNormal(0,3.5);
+ for(let i=0;i<N;i++){const n=nr(),e=st.reduce((a,[m,v])=>a+(m+n+sr()>0?v:0),0);tot+=e;if(e>=need)w++}
+ $('mcr').innerHTML=`<b class=D>${dn}</b> wins ${(w/N*100).toFixed(1)}% · <b class=R>${rn}</b> ${(100-w/N*100).toFixed(1)}%<br>Average D ${OFFK==='pres'?'electoral votes':'wins'}: ${(tot/N).toFixed(OFFK==='pres'?0:1)}<br><small>σ national 3 pts, state 3.5 pts</small>`};
+// ---- scenario tools: past-year environment, share link
+$('envy').innerHTML=Object.keys(HNAT).map(y=>`<option${y==='2018'?' selected':''}>${y}</option>`).join('');
+$('envgo').onclick=()=>{const y=$('envy').value,b=HNAT[hyE(HY)],e=Math.max(-15,Math.min(15,Math.round((HNAT[y]-b)*2)/2));setAll('env',e);build();upd();
+ $('envh').textContent=`${y} House vote ${fmt(HNAT[y])} vs ${fmt(b)} in the starting year → national environment ${e>=0?'+':''}${e} on every tab.`};
+$('envx').onclick=()=>{setAll('env',0);build();upd()};
+const NUMK=['env','lean','imp','to','osh','ap','apb','dq','rq','tp','rf','rs'],STK=['st','sto','sa','cq','hold','sp','nr','ns','sw','vr','apo'],ARK=['sh','mg','th','tm','ph','pm'],SHK=[...NUMK,...ARK,...STK,'inc','ca','xs','xm'];
+function shareURL(){const s={};for(const o of OFFS){s[o]={};for(const k of SHK)s[o][k]=OS[o][k]}
+ return location.href.split('#')[0]+'#s='+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify({b:typeof BASEY==='number'?BASEY:null,o:OFFK,s})))))}
+function readShare(){try{const m=/[#&]s=([^&]+)/.exec(location.hash);return m?JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(m[1]))))):null}catch(e){return null}}
+function applyShare(j){const keep=(o,f)=>Object.fromEntries(Object.entries(o).filter(([k])=>f(k)));
+ for(const o of OFFS){const s=j.s&&j.s[o],X=OS[o];if(!s)continue;
+  for(const k of NUMK)if(s[k]!==null&&s[k]!==''&&Number.isFinite(+s[k]))X[k]=+s[k];
+  for(const k of ARK)if(Array.isArray(s[k])&&s[k].length===X[k].length&&s[k].every(Number.isFinite))X[k]=[...s[k]];
+  if(['D','R',''].includes(s.inc))X.inc=s.inc;
+  for(const k of STK)if(s[k]&&typeof s[k]==='object')X[k]=keep(s[k],n=>NM.includes(n));
+  X.sw=keep(X.sw,k=>X.sw[k]==='reg'||X.sw[k]==='spec');X.vr=keep(X.vr,k=>VRN[X.vr[k]]);
+  for(const k of['xs','xm'])if(s[k])for(const g of XG)if(Array.isArray(s[k][g.k])&&s[k][g.k].length===X[k][g.k].length&&s[k][g.k].every(Number.isFinite))X[k][g.k]=[...s[k][g.k]];
+  if(s.ca&&typeof s.ca==='object')X.ca=keep(s.ca,f=>/^\d{5}$/.test(f))}
+ setBase(BASEY);setOff(OFFS.includes(j.o)?j.o:OFFK)}
+$('shgo').onclick=async()=>{const u=shareURL(),i=$('shurl');i.style.display='';i.value=u;i.select();
+ try{await navigator.clipboard.writeText(u);$('shh').textContent='Link copied.'+(typeof BASEY==='number'?'':' Saved elections are not included, so this link starts from 2024.')}catch(e){$('shh').textContent='Copy the link from the box above.'}};
+// ---- map image: the current map (including zoom) plus a title line, as a PNG
+$('pngb').onclick=()=>{const el=$('map'),vb=el.viewBox.baseVal,W=vb.width*2,H=vb.height*2,cl=el.cloneNode(true),ns='http://www.w3.org/2000/svg';
+ cl.setAttribute('xmlns',ns);cl.setAttribute('width',W);cl.setAttribute('height',H);cl.removeAttribute('style');
+ const bg=document.createElementNS(ns,'rect');bg.setAttribute('width',vb.width);bg.setAttribute('height',vb.height);bg.setAttribute('fill','#0a121f');cl.insertBefore(bg,cl.firstChild);
+ const g=ST[SEL||'US'],img=new Image(),u=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(cl)],{type:'image/svg+xml'}));
+ img.onload=()=>{const cv=document.createElement('canvas'),P=70,x=cv.getContext('2d');cv.width=W;cv.height=H+P;x.fillStyle='#080c14';x.fillRect(0,0,W,H+P);x.drawImage(img,0,P);
+  x.fillStyle='#e8ecf4';x.font='600 30px Georgia,serif';x.fillText(`${ON[OFFK]} · ${BASEL}${SEL?' · '+SEL:''} · ${MODES[MODE]}`,20,32);
+  if(g){x.font='20px system-ui,sans-serif';x.fillStyle='#8b97ad';x.fillText(`${$('dn').value} ${(g.d/g.v*100).toFixed(1)}%  ·  ${$('rn').value} ${(g.r/g.v*100).toFixed(1)}%  ·  ${fmt((g.d-g.r)/g.v*100)}`,20,60)}
+  cv.toBlob(bl=>{const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='election-map.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500)});URL.revokeObjectURL(u)};
+ img.onerror=()=>{URL.revokeObjectURL(u);alert('Could not render the map image in this browser.')};img.src=u};
+// ---- side-by-side scenarios: capture every office's current result as A or B
+const CMPS={};
+function takeSnap(){const sn={label:$('sname').value.trim()||BASEL,o:{}};
+ for(const k of OFFS){const O=OF[k];if(!O||!O.ST||!O.ST.US)continue;const st={};let D=0,R=0;
+  if(k==='pres'){for(const u of evUnits(O))(u.m>0?D+=u.e:R+=u.e);for(const q in O.ST)if(q!=='US')st[q]=O.ST[q].m}
+  else if(k==='house'){const t=hTot(O.ST);D=t.D;R=t.N-t.D;for(const q in O.ST)if(q!=='US'&&O.ST[q].act)st[q]=O.ST[q].m}
+  else{for(const q in O.ST)if(q!=='US'&&O.ST[q].act){st[q]=O.ST[q].m;st[q]>0?D++:R++}
+   if(k==='sen'){const t=senCtl();if(t){D=t.hD+t.uD;R=t.hR+t.uR}}}
+  if(k!=='pres'&&!Object.keys(st).length)continue;sn.o[k]={D,R,m:O.ST.US.m,st}}
+ return sn}
+function cmpRender(){const A=CMPS.A,B=CMPS.B,el=$('cmpout');if(!A&&!B){el.innerHTML='';return}
+ const nm=x=>x?esc(x.label):'–',cell=(x,k)=>{const r=x&&x.o[k];return r?`<span class=D>${r.D}</span> – <span class=R>${r.R}</span> · ${fmt(r.m)}`:'–'},unit={pres:'EV',house:'seats',sen:'seats',gov:'wins'};
+ let h=`<table><tr><th></th><th>A · ${nm(A)}</th><th>B · ${nm(B)}</th></tr>`+OFFS.map(k=>`<tr><td>${ON[k]} <small>${unit[k]}</small></td><td>${cell(A,k)}</td><td>${cell(B,k)}</td></tr>`).join('')+'</table>';
+ if(A&&B){const fl=[];for(const k of OFFS){const a=A.o[k],b=B.o[k];if(!a||!b)continue;for(const q in a.st)if(q in b.st&&(a.st[q]>0)!==(b.st[q]>0))fl.push(`${k==='pres'?'':ON[k]+' '}${abbr(q)} ${a.st[q]>0?'D→R':'R→D'}`)}
+  h+=`<div class=hint>${fl.length?'<b>Changes winner from A to B:</b> '+fl.join(', '):'No state changes winner between A and B.'} Senate counts include holdover seats; margins are national D−R.</div>`}
+ el.innerHTML=h}
+$('cmpA').onclick=()=>{if(C.size){CMPS.A=takeSnap();cmpRender()}};$('cmpB').onclick=()=>{if(C.size){CMPS.B=takeSnap();cmpRender()}};$('cmpX').onclick=()=>{delete CMPS.A;delete CMPS.B;cmpRender()};
+$('evsplit').onchange=()=>C.size&&upd();
 build();main().catch(e=>{console.error(e);$('msg').style.display='';$('msg').textContent='Error: '+e.message});
 </script></body></html>
