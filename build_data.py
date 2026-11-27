@@ -10,8 +10,8 @@ counties.json = list of
    shv:{vintage:[white,black,hispanic,asian,other]},   race shares of population, per Census vintage
    tyv:{vintage:[urban,suburban,rural]},               community type, per Census vintage
    cvv:{vintage:adult population},                     voting-age pop (2000/2010/2020) or citizen VAP (2022)
-   agv:{vintage:[18-29,30-44,45-64,65+]},              age mix of adults (ACS 2022 only)
-   edv:{vintage:[no degree,college degree]},           education of adults 25+ (ACS 2022 only)
+   agv:{vintage:[18-29,30-44,45-64,65+]},              age mix of adults (ACS 5-year: 2012, 2016, 2020, 2022)
+   edv:{vintage:[no degree,college degree]},           education of adults 25+ (ACS 5-year: 2012, 2016, 2020, 2022)
    sh, cv, ty}                                         legacy fields (2022 race, 2022 CVAP, 2020 type)
 
 Census vintages (index.html picks the one that matches the election year, or the one you choose):
@@ -275,43 +275,45 @@ def main():
     except Exception as e:
         print("  ! ACS 2022 failed:", e)
 
-    print("ACS 2022 age and education")
-    try:
-        # B01001 sex by age: male 007-025, female 031-049 (18-19 ... 85+); B15003: 001 total (25+), 022-025 bachelor's and above
-        names = ["B01001_%03dE" % i for i in range(7, 26)] + ["B01001_%03dE" % i for i in range(31, 50)]
-        rows = json.loads(fetch(A + ",".join(names)))
-        h = rows[0]; ix = [h.index(n) for n in names]; si, ci = h.index("state"), h.index("county")
-        bands = [(0, 5), (5, 8), (8, 13), (13, 19)]  # 18-29, 30-44, 45-64, 65+
-        tmp, nat = {}, [0.0] * 4
-        for r in rows[1:]:
-            try: v = [num(r[i]) for i in ix]
-            except (TypeError, ValueError): continue
-            if min(v) < 0: continue
-            bb = [sum(v[a:z]) + sum(v[19 + a:19 + z]) for a, z in bands]
-            if sum(bb) > 0:
-                tmp[r[si] + r[ci]] = bb; nat = [x + y for x, y in zip(nat, bb)]
-        tn = sum(nat) or 1
-        if 0.15 < nat[0] / tn < 0.30 and 0.15 < nat[3] / tn < 0.30:
-            for f, bb in tmp.items():
-                if f in M: M[f].setdefault("agv", {})["2022"] = [round(x / sum(bb), 4) for x in bb]
-        else:
-            print("  ! age: sanity check failed, skipped")
-        en = ["B15003_001E", "B15003_022E", "B15003_023E", "B15003_024E", "B15003_025E"]
-        rows = json.loads(fetch(A + ",".join(en)))
-        h = rows[0]; ix = [h.index(n) for n in en]; si, ci = h.index("state"), h.index("county")
-        tmp, t, c = {}, 0.0, 0.0
-        for r in rows[1:]:
-            try: v = [num(r[i]) for i in ix]
-            except (TypeError, ValueError): continue
-            if min(v) < 0 or v[0] <= 0: continue
-            s = sum(v[1:]) / v[0]; tmp[r[si] + r[ci]] = s; t += v[0]; c += sum(v[1:])
-        if t and 0.25 < c / t < 0.50:
-            for f, s in tmp.items():
-                if f in M: M[f].setdefault("edv", {})["2022"] = [round(1 - s, 4), round(s, 4)]
-        else:
-            print("  ! education: sanity check failed, skipped")
-    except Exception as e:
-        print("  ! ACS 2022 age/education failed:", e)
+    print("ACS age and education (5-year, one vintage per election era)")
+    for yr in (2012, 2016, 2020, 2022):
+        AY = "https://api.census.gov/data/%d/acs/acs5?for=county:*&get=" % yr
+        try:
+            # B01001 sex by age: male 007-025, female 031-049 (18-19 ... 85+); B15003: 001 total (25+), 022-025 bachelor's and above
+            names = ["B01001_%03dE" % k for k in range(7, 26)] + ["B01001_%03dE" % k for k in range(31, 50)]
+            rows = json.loads(fetch(AY + ",".join(names)))
+            h = rows[0]; ix = [h.index(n) for n in names]; si, ci = h.index("state"), h.index("county")
+            bands = [(0, 5), (5, 8), (8, 13), (13, 19)]  # 18-29, 30-44, 45-64, 65+
+            tmp, nat = {}, [0.0] * 4
+            for r in rows[1:]:
+                try: v = [num(r[k]) for k in ix]
+                except (TypeError, ValueError): continue
+                if min(v) < 0: continue
+                bb = [sum(v[a:z]) + sum(v[19 + a:19 + z]) for a, z in bands]
+                if sum(bb) > 0:
+                    tmp[r[si] + r[ci]] = bb; nat = [x + y for x, y in zip(nat, bb)]
+            tn = sum(nat) or 1
+            if 0.15 < nat[0] / tn < 0.30 and 0.15 < nat[3] / tn < 0.30:
+                for f, bb in tmp.items():
+                    if f in M: M[f].setdefault("agv", {})[str(yr)] = [round(x / sum(bb), 4) for x in bb]
+            else:
+                print("  ! age %d: sanity check failed, skipped" % yr)
+            en = ["B15003_001E", "B15003_022E", "B15003_023E", "B15003_024E", "B15003_025E"]
+            rows = json.loads(fetch(AY + ",".join(en)))
+            h = rows[0]; ix = [h.index(n) for n in en]; si, ci = h.index("state"), h.index("county")
+            tmp, t, c = {}, 0.0, 0.0
+            for r in rows[1:]:
+                try: v = [num(r[k]) for k in ix]
+                except (TypeError, ValueError): continue
+                if min(v) < 0 or v[0] <= 0: continue
+                tmp[r[si] + r[ci]] = sum(v[1:]) / v[0]; t += v[0]; c += sum(v[1:])
+            if t and 0.20 < c / t < 0.50:
+                for f, sh in tmp.items():
+                    if f in M: M[f].setdefault("edv", {})[str(yr)] = [round(1 - sh, 4), round(sh, 4)]
+            else:
+                print("  ! education %d: sanity check failed, skipped" % yr)
+        except Exception as e:
+            print("  ! ACS %d age/education failed:" % yr, e)
 
     out = [o for o in M.values() if o["y"]]
     for o in out:  # legacy fields for older copies of index.html
