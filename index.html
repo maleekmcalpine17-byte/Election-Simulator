@@ -300,7 +300,7 @@ const SV={},SAVEDL=[],AVAIL={sh:new Set(),ty:new Set(),cv:new Set()},VN={2000:'2
 const OFFS=['pres','house','sen','gov'],ON={pres:'President',house:'House',sen:'Senate',gov:'Governor'},OS={},OF={},BASEO={};
 let OFFK='pres',SELC='';
 OFFS.forEach(o=>BASEO[o]={sh:[...BASE.sh],mg:[...BASE.mg],th:[...BASE.th],tm:[...BASE.tm],ph:[...BASE.ph],pm:[...BASE.pm],ap:APD(2024),inc:incOf(2024),xs:cx(BASE.xs),xm:cx(BASE.xm)});
-const initS=off=>{const b=BASEO[off]||BASE;return{env:0,lean:1,imp:.3,to:0,osh:0,st:{},sto:{},sa:{},ca:{},cq:{},hold:{},sp:{},nr:{},ns:{},sw:{},race:'',dn:'Democrat',rn:'Republican',sh:[...b.sh],mg:[...b.mg],th:[...b.th],tm:[...b.tm],ph:[...b.ph],pm:[...b.pm],ap:b.ap,inc:b.inc,apb:APB[off],apo:{},dq:80,rq:80,tp:0,rf:50,rs:0,vr:{},rg:{},xs:cx(b.xs||BASE.xs),xm:cx(b.xm||BASE.xm)}};
+const initS=off=>{const b=BASEO[off]||BASE;return{env:0,lean:1,imp:.3,to:0,osh:0,st:{},sto:{},sa:{},ca:{},cq:{},hold:{},sp:{},nr:{},ns:{},sw:{},race:'',dn:'Democrat',rn:'Republican',sh:[...b.sh],mg:[...b.mg],th:[...b.th],tm:[...b.tm],ph:[...b.ph],pm:[...b.pm],ap:b.ap,inc:b.inc,apb:APB[off],apo:{},dq:80,rq:80,tp:0,rf:50,rs:0,vr:{},rg:{},rb:{},xs:cx(b.xs||BASE.xs),xm:cx(b.xm||BASE.xm)}};
 OFFS.forEach(o=>OS[o]=initS(o));S=OS.pres;
 // Built-in approximate state race/ethnicity mix (ACS-style, % of population: White NH, Black, Hispanic, Asian; Other = remainder). Used only until real county data loads, so state-level group shifts still differ by state offline.
 const SFALL={Alabama:[63,26,5,1.5],Alaska:[60,3,7,6.5],Arizona:[52,4,32,3.5],Arkansas:[67,15,8,1.8],California:[34,5,40,15.5],Colorado:[66,4,22,3.6],Connecticut:[63,10,17,5],Delaware:[59,22,11,4.3],"District of Columbia":[37,41,11,4.5],Florida:[53,14,27,3],Georgia:[49,31,10,4.7],Hawaii:[20,2,11,37],Idaho:[80,.8,13,1.6],Illinois:[58,14,18,6.4],Indiana:[76,9,8,2.7],Iowa:[84,3.7,6.8,2.8],Kansas:[73,5.5,13,3],Kentucky:[83,8,4,1.7],Louisiana:[56,31,7,1.9],Maine:[91,1.7,2,1.4],Maryland:[47,29,11,6.5],Massachusetts:[69,6.5,13,7],Michigan:[73,13,6,3.5],Minnesota:[76,6.5,6,5.2],Mississippi:[55,37,3.5,1.1],Missouri:[77,11,5,2.5],Montana:[84,.5,4,.9],Nebraska:[75,5,12,2.8],Nevada:[45,9,29,9.5],"New Hampshire":[88,1.5,4,3],"New Jersey":[53,12,21,10.2],"New Mexico":[35,2,50,2],"New York":[54,14,19,9],"North Carolina":[60,20,11,3.3],"North Dakota":[82,3,4,1.6],Ohio:[77,12,4,2.6],Oklahoma:[62,7,12,2.3],Oregon:[73,2,14,5],Pennsylvania:[73,10,8,4.3],"Rhode Island":[70,6,17,3.7],"South Carolina":[62,25,7,1.8],"South Dakota":[80,1.8,4.5,1.5],Tennessee:[73,16,6,2],Texas:[39,12,40,5.5],Utah:[77,1.4,15,2.7],Vermont:[90,1.3,2,1.8],Virginia:[61,18,10,7],Washington:[64,4,13,9.5],"West Virginia":[90,3.3,1.8,.8],Wisconsin:[79,6,7,3],Wyoming:[83,1,10,1]};for(const n in SFALL){const a=SFALL[n];SBASE[n]=[...a,Math.max(0,100-a.reduce((x,y)=>x+y,0))]}
@@ -338,6 +338,9 @@ function stateExtras(){const f=document.createDocumentFragment();if(!SEL)return 
  if(OFFK!=='pres'){const real=OF[OFFK].real.has(SEL),h=document.createElement('div');h.className='hint';
   h.textContent=real?`${(OF[OFFK].kind||{})[SEL]==='spec'?'Special election for '+ON[OFFK].toLowerCase()+' in '+SEL:'Real '+ON[OFFK].toLowerCase()+' race in '+SEL} (${OF[OFFK].src==='saved'?'from the saved election':OF[OFFK].src==='est'?'seat is up this cycle; baseline is an estimate':'cycle results'}).`:`No ${ON[OFFK].toLowerCase()} race in ${SEL} in this cycle.`;f.append(h);
   if(!real){const l=document.createElement('label');l.innerHTML='<input type=checkbox> Hold a hypothetical race here (starts from the presidential result)';const i=l.firstElementChild;i.checked=!!S.hold[SEL];i.onchange=()=>{if(i.checked)S.hold[SEL]=true;else delete S.hold[SEL];upd()};f.append(l)}}
+ if((OFFK==='sen'||OFFK==='gov')&&OF[OFFK].alt&&OF[OFFK].alt[SEL]){const k=OF[OFFK].kind[SEL],d=document.createElement('div');d.className='row';d.innerHTML=`<span>Race shown</span><span class=tabs style="margin:0"><button data-v=reg${k==='reg'?' class=on':''}>Regular</button><button data-v=spec${k==='spec'?' class=on':''}>Special</button></span>`;
+  d.querySelectorAll('button').forEach(b=>b.onclick=()=>switchRace(SEL,b.dataset.v));f.append(d);
+  const h=document.createElement('div');h.className='hint';h.textContent='This state has a regular and a special race on the ballot. State, county, candidate and approval changes you make apply only to the race shown; national sliders move both.';f.append(h)}
  if(OFFK!=='house'){const l=document.createElement('label');l.innerHTML='Vote rule in '+SEL+'<select><option value="">Default ('+VRN[ruleOf(OFFK,SEL,{})]+')</option>'+Object.keys(VRN).map(k=>`<option value=${k}>${VRN[k]}</option>`).join('')+'</select>';
   const i=l.querySelector('select');i.value=(S.vr||{})[SEL]||'';i.onchange=()=>{S.vr??={};if(i.value)S.vr[SEL]=i.value;else delete S.vr[SEL];upd()};f.append(l);
   const h=document.createElement('div');h.className='hint';h.textContent='If no candidate gets 50% statewide, a runoff or ranked-choice count moves the third-party vote using the 2nd-choice and runoff sliders. With the defaults (50% / no shift) the margin is unchanged; the rule matters once you add third-party vote or skew those sliders.';f.append(h);
@@ -478,7 +481,9 @@ function offInfo(){const el=$('offinfo'),pkr=$('seatpick'),y=BASEY,sv=SV[y],yr=s
  $('seatsel').innerHTML=`<option value="">Auto${O.src==='saved'?' (as saved)':' ('+(cls?(sen?'Class '+cls:opts[cls]):'none this year')+')'}</option>`+Object.keys(opts).map(k=>`<option value="${k}">${opts[k]}</option>`).join('');$('seatsel').value=sel||'';
  el.textContent=n?(O.src==='est'?`${n} ${nm} seats are up in this cycle. No certified ${nm} results are built in for ${BASEL}, so each starts from its state’s presidential lean plus that state’s usual ${nm}-vs-president gap (an estimate). `:`${n} real ${nm} races ${O.src==='saved'?'in the saved election':'in this cycle'}. `)+`Other states are greyed out. County results are the presidential counties shifted so each state matches its ${nm} margin. “Seats up” jumps to another cycle, for example to bring a saved class up again and see the flips. Select a greyed state and tick “Hold a hypothetical race” to add one, or use “Special elections” below to call a special election, switch a state between its regular and special race, or remove a race.`:`No ${nm} seats are up in ${BASEL}. Pick a “Seats up” cycle above, or select a state and tick “Hold a hypothetical race”.`}
 // ---- special elections panel (Senate / Governor): call a special in any state, switch a state between its regular and special race, remove any race.
-function spChange(){setBase(BASEY);SELC='';calc();offInfo();build();if(paths)selState();else upd()}
+function spChange(){const off=OFFK,k0=OF[off]&&OF[off].kind?{...OF[off].kind}:{};setBase(BASEY);const k1=(OF[off]&&OF[off].kind)||{},Sx=OS[off];
+ for(const q in k1)if(k0[q]&&k0[q]!==k1[q]){const bag=(Sx.rb??={})[q]??={};bag[k0[q]]=rbTake(Sx,q);rbPut(Sx,q,bag[k1[q]]);delete bag[k1[q]]}
+ SELC='';calc();offInfo();build();if(paths)selState();else upd()}
 function spPanel(){const el=$('sppanel');if(!el)return;if(OFFK!=='sen'&&OFFK!=='gov'||!OF[OFFK]){el.style.display='none';return}
  const O=OF[OFFK],Sx=OS[OFFK],sen=OFFK==='sen',saved=O.src==='saved',kind=O.kind||{},spc=O.spc||new Set(),reg=O.reg||new Set(),spE=O.spE||new Set(),spB=O.spB||new Set(),nm=sen?'Senate':'governor',
   states=NM.filter(n=>n!=='District of Columbia'),live=s=>O.real.has(s);
@@ -499,7 +504,7 @@ function spPanel(){const el=$('sppanel');if(!el)return;if(OFFK!=='sen'&&OFFK!=='
  h+=`<div class=hint>${sen?'A state with two Senate seats on the ballot (like Georgia in 2020) shows a Regular / Special switch; the map shows the one you pick, and chamber control counts both seats. ':''}A special you call starts from the state’s presidential margin plus its usual ${nm}-vs-president gap (an estimate); built-in specials use their real results.</div>`;
  el.innerHTML=h;
  const rmRace=s=>{const k=kind[s]||'reg';if(k==='spec'){delete Sx.sp[s];if(spB.has(s))Sx.ns[s]=true}else Sx.nr[s]=true;delete Sx.sw[s];spChange()};
- el.querySelectorAll('[data-sw]').forEach(b=>b.onclick=()=>{Sx.sw[b.dataset.sw]=b.dataset.v;spChange()});
+ el.querySelectorAll('[data-sw]').forEach(b=>b.onclick=()=>switchRace(b.dataset.sw,b.dataset.v));
  el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>rmRace(b.dataset.rm));
  el.querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>{delete Sx[b.dataset.k][b.dataset.rs];spChange()});
  $('spaddb').onclick=()=>{const s=$('spadd').value;if(!s)return;delete Sx.ns[s];if(!spB.has(s))Sx.sp[s]=true;if(!saved&&reg.has(s)&&!Sx.nr[s])Sx.sw[s]='spec';spChange()};
@@ -522,7 +527,7 @@ function senCtl(){const O=OF.sen,Sx=OS.sen,sv=SV[BASEY],yr=sv?(sv.yr||2024):BASE
   add=(a,c,m)=>{const k=a+c;if(up.has(k))return;up.add(k);ms.push(m)};
  for(const[q,o]of Object.entries(O.ST)){if(q==='US'||!o.act||q==='District of Columbia')continue;
   const a=abbr(q),sp=(O.kind||{})[q]==='spec';add(a,sp?pick(a,nx,c0):pick(a,c0,null),o.m);
-  if(O.alt&&O.alt[q]!=null&&O.src!=='saved')add(a,sp?pick(a,c0,null):pick(a,nx,c0),O.alt[q]+(o.m-o.b))}
+  if(O.alt&&O.alt[q]!=null&&O.src!=='saved')add(a,sp?pick(a,c0,null):pick(a,nx,c0),(O.altm&&O.altm[q]!=null?O.altm[q]:O.alt[q]+(o.m-o.b)))}
  let hD=0,hR=0;for(const c of[1,2,3])for(const a of SAS[c])if(!up.has(a+c))SDS[c].has(a)?hD++:hR++;
  const uD=ms.filter(m=>m>0).length;return{hD,hR,uD,uR:ms.length-uD,ms,n:ms.length,vp:Sx.inc}}
 function ctlHtml(){const t=senCtl();
@@ -571,13 +576,27 @@ function buildRG(){const t=$('rgtab');if(!t)return;t.innerHTML='<tr><th>Region</
 function refreshRG(){const cs=document.querySelectorAll('#rgtab .rgres');if(!cs.length||!C.size)return;const A=RGD.map(()=>[0,0,0,0]);
  for(const c of C.values()){if(c.act===false)continue;for(const id of rgIds(c)){const a=A[RGI[id]];a[0]+=c.vs;a[1]+=c.vs*c.m;a[2]+=c.v;a[3]+=c.v*c.m0}}
  cs.forEach((el,i)=>{const a=A[i];el.innerHTML=a[0]?`<span class="${a[1]>0?'D':'R'}">${fmt(a[1]/a[0])}</span> (${fmt(a[3]/a[2])})`:'no data'})}
+// ---- regular vs special in the same state: state, county, candidate and approval inputs belong to the race shown. Switching races stores them with the race you leave and loads the other race's.
+const RBK=['st','sto','sa','cq','apo'],rbSt=f=>{const c=OF.pres&&OF.pres.C.get(f);return c&&c.st};
+function rbTake(Sx,q){const o={ca:{}};for(const k of RBK)if(Sx[k][q]!==undefined){o[k]=Sx[k][q];delete Sx[k][q]}for(const f in Sx.ca)if(rbSt(f)===q){o.ca[f]=Sx.ca[f];delete Sx.ca[f]}return o}
+function rbPut(Sx,q,o){if(!o)return;for(const k of RBK)if(o[k]!==undefined)Sx[k][q]=o[k];if(o.ca)Object.assign(Sx.ca,o.ca)}
+function switchRace(q,v){OS[OFFK].sw[q]=v;spChange()}
+const spTag=()=>(OFFK==='sen'||OFFK==='gov')&&SEL&&OF[OFFK].kind&&OF[OFFK].kind[SEL]==='spec'?' · special election':'';
+function calcAlt(off){const O=OF[off],Sx=OS[off],qs=Object.keys(O.alt||{});O.altm={};if(!qs.length||!O.CA)return;
+ const cur={},tmp=new Map();
+ for(const q of qs){const k=(O.kind||{})[q]||'reg',bag=(Sx.rb??={})[q]??={};cur[q]=rbTake(Sx,q);rbPut(Sx,q,bag[k==='spec'?'reg':'spec'])}
+ for(const[f,u]of O.CA){tmp.set(f,O.C.get(f));O.C.set(f,u)}
+ calcOff(off);for(const q of qs)if(O.ST[q])O.altm[q]=O.ST[q].m;
+ for(const[f,u]of tmp)O.C.set(f,u);
+ for(const q of qs){rbTake(Sx,q);rbPut(Sx,q,cur[q])}
+ calcOff(off)}
 function agg(list){const o={v:0,v0:0,d:0,r:0,x:0,b:0,cs:0,cn:0,s:[0,0,0,0,0],t:[0,0,0],p:[0,0,0],a:[0,0,0,0],e:[0,0],mh:{}},ac={};
  for(const c of list){o.v+=c.vs;o.v0+=c.v;o.d+=c.vs*c.pdS;o.r+=c.vs*c.prS;o.x+=c.vs*c.m;o.b+=c.v*c.m0;
   if(c.cvap){o.cs+=c.cvap;o.cn++}
   if(c.mh)for(const y in c.mh)if(c.mh[y]!=null){const a=ac[y]??=[0,0];a[0]+=c.v*c.mh[y];a[1]+=c.v}
   const s=c.s||DEF,ty=c.ty||DEFT;for(let i=0;i<5;i++)o.s[i]+=c.vs*s[i];for(let i=0;i<3;i++)o.t[i]+=c.vs*ty[i];const pt=c.pt||DEFP;for(let i=0;i<3;i++)o.p[i]+=c.vs*pt[i];const xa=c.ag||DEFX.a,xe=c.ed||DEFX.e;for(let i=0;i<4;i++)o.a[i]+=c.vs*xa[i];for(let i=0;i<2;i++)o.e[i]+=c.vs*xe[i]}
  o.m=o.x/o.v;o.b/=o.v0;for(const y in ac)o.mh[y]=ac[y][0]/ac[y][1];o.cv=o.cn===list.length?o.cs:null;return o}
-function calc(){for(const o of OFFS)if(OF[o]&&OF[o].C.size)calcOff(o);useOff(OFFK)}
+function calc(){for(const o of OFFS)if(OF[o]&&OF[o].C.size){calcOff(o);if(o==='sen'||o==='gov')calcAlt(o)}useOff(OFFK)}
 function cut(x,k,mg,ds,dm,bm){let b=0,a=0,w=0;for(let i=0;i<x.length;i++){b+=x[i]*bm[i];const r=ds?Math.max(0,x[i]*k[i]*100+ds[i]):x[i]*k[i],m=dm?mg[i]+dm[i]:mg[i];a+=r*m;w+=r}return(w?a/w:0)-b}
 function calcOff(off){
  const apc={},apf=st=>apc[st]??=apState(off,st).adj;
@@ -661,7 +680,7 @@ function panels(){
   ev=`<div style="font:600 28px Georgia,serif"><span class=D>${D}</span> – <span class=R>${R}</span> <small style="font:12px system-ui;color:var(--m)">${spl?'electoral votes (Maine and Nebraska split by district)':'electoral votes (winner-take-all)'}</small></div><div class=bar><div style="width:${D/5.38}%;background:var(--d)"></div><div style="width:${R/5.38}%;background:var(--r)"></div></div>${cdLine(U)}${D===269&&R===269?tieTxt():''}${rnTxt()}`}
  else if(SC)ev=`<small style="color:var(--m)">Individual-state simulation · starting from ${esc(BASEL)} ${SV[BASEY]?'saved results':'presidential results'}</small><br>`;
  else ev=`<small style="color:var(--m)">${EV[SEL]||''} electoral votes → <b class="${dw?'D':'R'}">${dw?dn:rn}</b></small><br>${cdLine(evUnits().filter(u=>u.s===SEL))}`;
- $('rr').innerHTML=`<div class=sub>${name} · ${race} · simulated</div><h2 style="font:600 26px Georgia,serif;color:var(--t);letter-spacing:0;text-transform:none;margin:4px 0">Race results</h2>${row(dn,g.d,'D',dw)}${row(rn,g.r,'R',!dw)}${ot>1?`<div class=cand><span>Other</span><b style="font-size:16px">${(ot/tot*100).toFixed(2)}%</b><small>${n0(ot)} votes</small></div>`:''}<span class=tag>${dw?'Democratic':'Republican'} ${hold?'hold':'gain'} vs ${esc(BASEL)}</span><p style="color:var(--m);margin:8px 0">${n0(tot)} votes · ${fmt(mg)} points · ${esc(BASEL)}: ${fmt(g.b)}</p>${ev}`;
+ $('rr').innerHTML=`<div class=sub>${name} · ${race}${spTag()} · simulated</div><h2 style="font:600 26px Georgia,serif;color:var(--t);letter-spacing:0;text-transform:none;margin:4px 0">Race results</h2>${row(dn,g.d,'D',dw)}${row(rn,g.r,'R',!dw)}${ot>1?`<div class=cand><span>Other</span><b style="font-size:16px">${(ot/tot*100).toFixed(2)}%</b><small>${n0(ot)} votes</small></div>`:''}<span class=tag>${dw?'Democratic':'Republican'} ${hold?'hold':'gain'} vs ${esc(BASEL)}</span><p style="color:var(--m);margin:8px 0">${n0(tot)} votes · ${fmt(mg)} points · ${esc(BASEL)}: ${fmt(g.b)}</p>${ev}`;
  if(OFFK!=='pres'&&SEL&&!g.act)$('rr').innerHTML=`<div class=sub>${name} · ${ON[OFFK]}</div><h2 style="font:600 26px Georgia,serif;color:var(--t);letter-spacing:0;text-transform:none;margin:4px 0">No race</h2><p style="color:var(--m)">There is no ${ON[OFFK].toLowerCase()} race in ${name} in this cycle. Tick “Hold a hypothetical race” in the state card to simulate one from the presidential result.</p>`;
  if(SC){$('ctitle').textContent=COUNTYOK?'Largest counties in '+SEL:'State summary';
   $('close').innerHTML=[...C.values()].filter(c=>c.st===SEL).sort((a,b)=>b.vs-a.vs).slice(0,10).map(c=>`<tr data-f="${c.f}" style="cursor:pointer"><td>${c.name}</td><td class="${c.m>0?'D':'R'}">${fmt(c.m)}</td><td>${n0(c.vs)}</td></tr>`).join('')}
@@ -786,10 +805,11 @@ function setBase(y){
     for(const q in Sx.sp)if(Sx.sp[q]&&PSM[q]!=null&&!(q in spm)){spm[q]=est(q);O.spE.add(q)}
     O.reg=new Set(Object.keys(dm));O.spc=new Set(Object.keys(spm));
     // which race each state runs: regular unless a special is the only one left or you switched to it; removed races drop out
-    const fd={};for(const q of new Set([...Object.keys(dm),...Object.keys(spm)])){const hr=q in dm&&!Sx.nr[q],hs=q in spm&&!Sx.ns[q];if(!hr&&!hs)continue;const sk=hs&&(!hr||Sx.sw[q]==='spec');fd[q]=sk?spm[q]:dm[q];O.kind[q]=sk?'spec':'reg';if(hr&&hs)(O.alt??={})[q]=PSM[q]+(sk?dm[q]:spm[q])}
+    const fd={};for(const q of new Set([...Object.keys(dm),...Object.keys(spm)])){const hr=q in dm&&!Sx.nr[q],hs=q in spm&&!Sx.ns[q];if(!hr&&!hs)continue;const sk=hs&&(!hr||Sx.sw[q]==='spec');fd[q]=sk?spm[q]:dm[q];O.kind[q]=sk?'spec':'reg';if(hr&&hs){(O.alt??={})[q]=PSM[q]+(sk?dm[q]:spm[q]);(O.altd??={})[q]=sk?dm[q]:spm[q]}}
     for(const q in dm)delete dm[q];Object.assign(dm,fd)}
    O.real=new Set(Object.keys(dm));
    for(const p of P.values()){const d=dm[p.st]||0;O.C.set(p.f,mkU(p,p.v*TOF,Math.max(.001,p.pd+d/200),Math.max(.001,p.pr-d/200),p.m0+d))}}
+  if(O.altd)for(const p of P.values()){const d=O.altd[p.st];if(d!=null)(O.CA??=new Map()).set(p.f,mkU(p,p.v*TOF,Math.max(.001,p.pd+d/200),Math.max(.001,p.pr-d/200),p.m0+d))}
   O.kind??={};O.reg??=new Set(O.real);O.spB??=new Set();O.spE??=new Set();O.spc??=new Set();
   fin(O)}
  HB=0;if(!HD0)solveHB();
@@ -803,7 +823,7 @@ function setBase(y){
 function chooseBase(y){
  SEATSEL.sen=SEATSEL.gov=null;for(const o of OFFS)if(OS[o])Object.assign(OS[o],{sp:{},nr:{},ns:{},sw:{}});const sv=SV[y];if(sv){VINT=String(sv.vint||'auto');$('vint').value=VINT;$('sname').value=''}
  setBase(y);
- for(const o of OFFS){if(sv||!OS[o])OS[o]=initS(o);else{const b=BASEO[o];Object.assign(OS[o],{sh:[...b.sh],mg:[...b.mg],th:[...b.th],tm:[...b.tm],ph:[...b.ph],pm:[...b.pm],ap:b.ap,inc:b.inc,apb:APB[o],apo:{},sa:{},ca:{},hold:{},sp:{},nr:{},ns:{},sw:{},tp:0,rf:50,rs:0,vr:{},rg:{},xs:cx(b.xs),xm:cx(b.xm)})}}
+ for(const o of OFFS){if(sv||!OS[o])OS[o]=initS(o);else{const b=BASEO[o];Object.assign(OS[o],{sh:[...b.sh],mg:[...b.mg],th:[...b.th],tm:[...b.tm],ph:[...b.ph],pm:[...b.pm],ap:b.ap,inc:b.inc,apb:APB[o],apo:{},sa:{},ca:{},hold:{},sp:{},nr:{},ns:{},sw:{},tp:0,rf:50,rs:0,vr:{},rg:{},rb:{},xs:cx(b.xs),xm:cx(b.xm)})}}
  if(!sv&&!isPresY(y)&&OFFK==='pres'){OFFK=y%2?'gov':'sen';document.querySelectorAll('#offtabs button').forEach(b=>b.classList.toggle('on',b.dataset.o===OFFK));$('cmp').disabled=true}
  useOff(OFFK);SELC='';$('dn').value=S.dn;$('rn').value=S.rn;CMPY=sv?y:pyOf(y);$('cmp').value=CMPY;
  LEVEL=COUNTYOK?'counties':'states';$('lv').value=LEVEL;$('lv').querySelector('[value=counties]').disabled=!COUNTYOK;
